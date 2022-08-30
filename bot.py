@@ -1,6 +1,39 @@
 import discord
 from discord.utils import get
-players = []
+class event:
+    pilots = []
+    guards = []
+    barstaff = []
+    escort = []
+    def __init__(self, newid, newdate, sentmessage):
+        eventid = newid
+        date = newdate
+        message = sentmessage
+    def addpilot(self, pilot):
+        self.pilots.append(pilot)
+
+    def addguards(self, guard):
+        self.guards.append(guard)
+    def addbarstaff(self, bartender):
+        self.barstaff.append(bartender)
+    def addescort(self, pilot):
+        self.escort.append(pilot)
+    def removeplayer(self, player):
+        for x in self.pilots:
+            if self.pilots[x] == player:
+                self.pilots.remove(player)
+        for x in self.guards:
+            if self.guards[x] == player:
+                self.guards.remove(player)
+        for x in self.barstaff:
+            if self.barstaff[x] == player:
+                self.barstaff.remove(player)
+        for x in self.escort:
+            if self.escort[x] == player:
+                self.escort.remove(player)
+
+events = []
+
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -24,23 +57,5 @@ async def on_message(message):
             args = message.split('--')
         else:
             await message.channel.send("You are not authorised to create events.")
-    elif message.content.startswith('$list'):
-
-        if newmessage == "":
-            newmessage = 'There have been no reservations'
-        await message.channel.send(newmessage)
-    elif message.content.startswith('$clearall'):
-        if 'hosts' in [y.name.lower() for y in message.author.roles]:
-            for i in range(len(players)):
-                players[i] = ""
-            await message.channel.send('Cleared all reservations')
-        else:
-            await message.channel.send("You are not a host and therefore can't clear all reservations")
-    elif message.content.startswith('$clear'):
-        author = message.author
-        for i in range(len(players)):
-            if players[i] == str(author):
-                players[i] = ""
-        await message.channel.send('You no longer reserve a nation')
 
 client.run('MTAxMzYxMDU4MzYyNDUzNjE1NQ.GlYaAO.maSSyRQwEAyb4x_tkPJ8jqDlrJKO5UU1V08RGo')
