@@ -2,7 +2,9 @@ import discord
 from discord.utils import get
 players = []
 
-client = discord.Client()
+intents = discord.Intents.default()
+intents.message_content = True
+client = discord.Client(intents=intents)
 
 
 @client.event
@@ -18,8 +20,10 @@ async def on_message(message):
 
     if message.content.startswith('$create'):
         author = message.user
-        args = message.split('--')
-        if author
+        if 'admin' in [x.name.lower() for x in message.author.roles]:
+            args = message.split('--')
+        else:
+            await message.channel.send("You are not authorised to create events.")
     elif message.content.startswith('$list'):
 
         if newmessage == "":
@@ -39,4 +43,4 @@ async def on_message(message):
                 players[i] = ""
         await message.channel.send('You no longer reserve a nation')
 
-client.run('NzQ2Mzg2Njc4OTIyNjA4NzAw.Xz_kww.8QQVmvG3is4Q7fmLxnjdkRhH5Ug')
+client.run('MTAxMzYxMDU4MzYyNDUzNjE1NQ.GlYaAO.maSSyRQwEAyb4x_tkPJ8jqDlrJKO5UU1V08RGo')
