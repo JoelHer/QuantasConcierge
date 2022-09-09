@@ -1,4 +1,5 @@
 import discord
+import datetime
 from discord.utils import get
 class event:
     pilots = []
@@ -53,8 +54,23 @@ async def on_message(message):
 
     if message.content.startswith('$create'):
         author = message.user
+        # NOTE: change "admin" to "captain" for release
         if 'admin' in [x.name.lower() for x in message.author.roles]:
             args = message.split('--')
+            for x in args:
+                if x.lower().startswith("title="):
+                    title = x.strip('"')
+                    title.replace("title=", "")
+                elif x.lower().startswith("desc="):
+                    desc = x.strip('"')
+                    desc.replace("desc=", "")
+                elif x.lower().startswith("date="):
+                    date = x.strip('date=":')
+                    fdate = datetime.datetime()
+
+            newmessage =
+
+
         else:
             await message.channel.send("You are not authorised to create events.")
 
