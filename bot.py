@@ -2,6 +2,7 @@ import discord
 import datetime
 from discord.utils import get
 class event:
+    #Add tour guide
     pilots = []
     guards = []
     barstaff = []
