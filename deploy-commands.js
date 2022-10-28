@@ -8,7 +8,7 @@ const commands = [
     .addStringOption(option =>
         option.setName("description").setDescription("The text in the post").setRequired(true))
     .addStringOption(option =>
-        option.setName("date").setDescription("Set a date for the event").setRequired(true)),
+        option.setName("datetime").setDescription("Set a date and time for the event").setRequired(true)),
     new SlashCommandBuilder().setName("test").setDescription("Test command"),
 ]
     .map(command => command.toJSON())
