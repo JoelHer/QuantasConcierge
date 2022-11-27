@@ -1,5 +1,5 @@
 const { REST, SlashCommandBuilder, Routes } = require('discord.js');
-const { clientID, guildID, token } = require('./config.json');
+const { clientID, token } = require('./config.json');
 
 const commands = [
     new SlashCommandBuilder().setName("create").setDescription("Creates new event")
@@ -9,6 +9,14 @@ const commands = [
         option.setName("description").setDescription("The text in the post").setRequired(true))
     .addStringOption(option =>
         option.setName("datetime").setDescription("Set a date and time for the event").setRequired(true)),
+    new SlashCommandBuilder().setName("apply").setDescription("Apply to join an event")
+    .addIntegerOption(option =>
+        option.setName("token").setDescription("Token for the event").setRequired(true))
+    .addStringOption(option =>
+        option.setName("role").setDescription("The role you are signing up for").setRequired(true)),
+    new SlashCommandBuilder().setName("signup").setDescription("Sign up for the event")
+    .addIntegerOption(option =>
+        option.setName("token").setDescription("Token for the event").setRequired(true)),
     new SlashCommandBuilder().setName("test").setDescription("Test command"),
 ]
     .map(command => command.toJSON())
