@@ -1,6 +1,43 @@
 // Require the necessary discord.js classes
-const { Client, GatewayIntentBits} = require('discord.js');
+const fs = require('node:fs');
+const path = require('node:path');
+const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
 const { token } = require('./config.json');
+// Create a new client instance
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+
+client.commands = new Collection();
+const foldersPath = path.join(__dirname, 'commands');
+const commandFolders = fs.readdirSync(foldersPath);
+
+// Register Commands in the ./commands dir
+for (const folder of commandFolders) {
+	const commandsPath = path.join(foldersPath, folder);
+	const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+	for (const file of commandFiles) {
+		const filePath = path.join(commandsPath, file);
+		const command = require(filePath);
+		if ('data' in command && 'execute' in command) {
+			client.commands.set(command.data.name, command);
+		} else {
+			console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+		}
+	}
+}
+
+// Register discord events in the ./events dir
+const eventsPath = path.join(__dirname, 'events');
+const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.js'));
+
+for (const file of eventFiles) {
+	const filePath = path.join(eventsPath, file);
+	const event = require(filePath);
+	if (event.once) {
+		client.once(event.name, (...args) => event.execute(...args));
+	} else {
+		client.on(event.name, (...args) => event.execute(...args));
+	}
+}
 
 class crew
 {
@@ -49,46 +86,6 @@ class event
 const eventlist = [];
 var tokencounter = 0;
 
-// Create a new client instance
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-
-// When the client is ready, run this code (only once)
-client.once('ready', () => {
-	console.log('Ready!');
-});
-
-client.on('interactionCreate', async interaction => {
-	if (!interaction.isChatInputCommand()) return;
-	const { commandName } = interaction;
-	if (commandName === "test")
-	{
-		await interaction.reply("Test complete");
-	} 
-	else if (commandName === "create")
-	{
-		var title = interaction.options.getString("title");
-		var desc = interaction.options.getString("description");
-		var datetime = interaction.options.getString("datetime");
-		await interaction.reply(title + '\n' + desc + '\n' + datetime + '\n' + eventlist.length);
-		var e = new event(title, desc, datetime);
-		eventlist[eventlist.length] = e;
-	}
-	else if (commandName === "join")
-	{
-		var token = interaction.options.getInteger("token");
-		var role = interaction.options.getString("role");
-		var c = new crew();
-	}
-	else if (commandName === "signup")
-	{
-		var token = interaction.options.getInteger("token");
-		var passnum = eventlist[token].returnpassnum();
-		var ticketid = token + "-" + passnum;
-		var p = new passenger(interaction.user, ticketid);
-		eventlist[token].addpassenger(p);
-		await interaction.reply("You have signed up for the event, your ticket reciept is " + ticketid);
-	}
-});
 
 
 // Login to Discord with your client's token
