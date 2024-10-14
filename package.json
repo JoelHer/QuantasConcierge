@@ -4,7 +4,8 @@
   "description": "A discord bot to manage events.",
   "main": "bot.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "main": "npm run deploy && node bot.js",
+    "deploy": "node deploy-commands.js"
   },
   "repository": {
     "type": "git",
@@ -17,10 +18,10 @@
     "url": "https://github.com/arki-v1/QuantasConcierge/issues"
   },
   "homepage": "https://github.com/arki-v1/QuantasConcierge#readme",
-  "dependencies": {
-    "discord.js": "^14.6.0"
-  },
   "devDependencies": {
     "eslint": "^8.24.0"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3"
   }
 }
