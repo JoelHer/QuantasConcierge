@@ -10,6 +10,27 @@ client.commands = new Collection();
 const foldersPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(foldersPath);
 
+
+// Require the necessary libs for the database
+const sqlite3 = require('sqlite3').verbose();
+
+// Connect to a SQLite database (it creates the database file if it doesn't exist)
+const db = new sqlite3.Database('mydatabase.db', (err) => {
+  if (err) {
+    return console.error(err.message);
+  }
+  console.log('Connected to the SQLite database.');
+});
+
+db.run(`CREATE TABLE IF NOT EXISTS guilds (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guildid TEXT NOT NULL
+)`);
+
+// Export the db instance
+module.exports.db = db;
+
+
 // Register Commands in the ./commands dir
 for (const folder of commandFolders) {
 	const commandsPath = path.join(foldersPath, folder);
