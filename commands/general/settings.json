@@ -1,8 +1,14 @@
 {
     "settingsTemplate": {
         "general": {
-            "testValue":"string",
-            "numberer":"int"
+            "testValue": {
+                "value": "string",
+                "friendlyName": "Test Value with key 'testValue'"
+            },
+            "numberer": {
+                "value": 0,
+                "friendlyName": "Cool ass number"
+            }
         }
     }
 }

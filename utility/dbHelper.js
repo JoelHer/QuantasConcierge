@@ -1,4 +1,4 @@
-function setSetting(db, guildid, key, value) {
+async function setSetting(db, guildid, key, value) {
     return new Promise((resolve, reject) => {
         db.run(`INSERT INTO settings (guildid, key, value) 
                 VALUES (?, ?, ?)
@@ -12,7 +12,8 @@ function setSetting(db, guildid, key, value) {
     });
 }
 
-function getSetting(db, guildid, key) {
+
+async function getSetting(db, guildid, key) {
     return new Promise((resolve, reject) => {
         db.get(`SELECT value FROM settings WHERE guildid = ? AND key = ?`, 
                 [guildid, key], (err, row) => {
@@ -24,8 +25,19 @@ function getSetting(db, guildid, key) {
     });
 }
 
+async function updateSetting(interaction, key, newValue) {
+    try {
+        await setSetting(db, interaction.guild.id, key, newValue);
+        await interaction.followUp(`Successfully updated ${key} to "${newValue}".`);
+    } catch (error) {
+        console.error('Error updating setting:', error);
+        await interaction.followUp('There was an error updating the setting.');
+    }
+}
+
 //export
 module.exports = {
     setSetting,
-    getSetting
+    getSetting,
+    updateSetting
 };
