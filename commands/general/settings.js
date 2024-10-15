@@ -1,43 +1,67 @@
 const { SlashCommandBuilder, ComponentType, EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } = require('discord.js');
 const { db } = require('../../bot');
+const { settingsTemplate } = require('./settings.json')
+const { setSetting, getSetting } = require('../../utility/dbHelper');
 
 function getMainMenu(interaction) {
     const mainMenuEmbed = new EmbedBuilder()
         .setColor(0x00FFFF)
         .setTitle(`Settings for "${interaction.guild.name}"`)
-        .setDescription("Please select a category to edit.");
+        .setDescription("Please select one of the following categories using the dropdown menu below:\n```🔷General\n   🔹General Settings of the bot\n🔷Roles\n   🔹Role settings including settings for mentions```");
     
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('general')
-            .setLabel('General Settings')
+            .setLabel('General')
             .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
             .setCustomId('roles')
-            .setLabel('Role Settings')
+            .setLabel('Roles')
             .setStyle(ButtonStyle.Primary)
     );
 
     return { embeds: [mainMenuEmbed], components: [row] };
 }
 
-function getGeneralSettingsMenu() {
-    const generalSettingsEmbed = new EmbedBuilder()
-        .setColor(0x00FF00)
-        .setTitle('General Settings')
-        .setDescription('Edit general bot settings here.');
+function getGeneralSettingsMenu(interaction) {
+    var _strb = "";
 
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('back')
-            .setLabel('Back to Main Menu')
-            .setStyle(ButtonStyle.Secondary)
-    );
+    // Create an array of promises
+    const promises = [];
 
-    return { embeds: [generalSettingsEmbed], components: [row] };
+    for (const [key, value] of Object.entries(settingsTemplate.general)) {
+        _strb += `${key}: ${value}\n`;
+
+        // Add the promise to the array and handle the response
+        promises.push(
+            getSetting(db, interaction.guild.id, key).then((settingValue) => {
+                console.log(settingValue);
+                // Optionally append the retrieved setting value to _strb
+                _strb += `Setting: ${settingValue}\n`;
+            })
+        );
+    }
+
+    // Wait for all promises to complete
+    return Promise.all(promises).then(() => {
+        const generalSettingsEmbed = new EmbedBuilder()
+            .setColor(0x00FF00)
+            .setTitle('General Settings')
+            .setDescription('Edit general bot settings here.\n' + _strb);
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('back')
+                .setLabel('Back')
+                .setStyle(ButtonStyle.Secondary)
+        );
+
+        return { embeds: [generalSettingsEmbed], components: [row] };
+    });
 }
 
-function getRoleSettingsMenu() {
+
+function getRoleSettingsMenu(interaction) {
     const roleSettingsEmbed = new EmbedBuilder()
         .setColor(0xFF00FF)
         .setTitle('Role Settings')
@@ -46,7 +70,7 @@ function getRoleSettingsMenu() {
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('back')
-            .setLabel('Back to Main Menu')
+            .setLabel('Back')
             .setStyle(ButtonStyle.Secondary)
     );
 
@@ -55,9 +79,9 @@ function getRoleSettingsMenu() {
 
 async function handleButtonInteraction(interaction) {
     if (interaction.customId === 'general') {
-        await interaction.update(getGeneralSettingsMenu());
+        await interaction.update(getGeneralSettingsMenu(interaction));
     } else if (interaction.customId === 'roles') {
-        await interaction.update(getRoleSettingsMenu());
+        await interaction.update(getRoleSettingsMenu(interaction));
     } else if (interaction.customId === 'back') {
         await interaction.update(getMainMenu(interaction));
     }
@@ -73,7 +97,9 @@ function createCollector(message, interaction) {
     collector.on('collect', async i => {
         try {
             await handleButtonInteraction(i); // Handle button clicks dynamically
-        } catch{}
+        } catch (_err){
+            console.log(_err)
+        }
     });
 
     collector.on('end', collected => {

@@ -23,9 +23,18 @@ const db = new sqlite3.Database('mydatabase.db', (err) => {
 });
 
 db.run(`CREATE TABLE IF NOT EXISTS guilds (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  guildid TEXT NOT NULL
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	guildid TEXT NOT NULL
 )`);
+  
+db.run(`CREATE TABLE IF NOT EXISTS settings (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	guildid INTEGER NOT NULL,
+	key TEXT NOT NULL,
+	value TEXT NOT NULL,
+	FOREIGN KEY(guildid) REFERENCES guilds(id)
+)`);
+  
 
 // Export the db instance
 module.exports.db = db;
@@ -59,55 +68,6 @@ for (const file of eventFiles) {
 		client.on(event.name, (...args) => event.execute(...args));
 	}
 }
-
-class crew
-{
-	constructor(username, role)
-	{
-		this.username = username;
-		this.role = role;
-	}
-}
-
-class passenger
-{
-	constructor(username, ticketid)
-	{
-		this.username = username;
-		this.ticketid = ticketid;
-	}
-}
-
-class event
-{
-	constructor(title, desc, datetime)
-	{
-		this.title = title;
-		this.desc = desc;
-		this.datetime = datetime;
-		this.crewmembers = [];
-		this.passengers = [];
-	}
-
-	addcrew(user)
-	{
-		this.crewmembers[crewmembers.length] = user;
-	}
-
-	addpassenger(user)
-	{
-		this.passengers[passengers.length] = user;
-	}
-
-	returnpassnum()
-	{
-		return this.passengers.length;
-	}
-}
-const eventlist = [];
-var tokencounter = 0;
-
-
 
 // Login to Discord with your client's token
 client.login(token);

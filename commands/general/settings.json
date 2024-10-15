@@ -1,0 +1,8 @@
+{
+    "settingsTemplate": {
+        "general": {
+            "testValue":"string",
+            "numberer":"int"
+        }
+    }
+}
