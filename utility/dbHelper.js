@@ -25,7 +25,7 @@ async function getSetting(db, guildid, key) {
     });
 }
 
-async function updateSetting(interaction, key, newValue) {
+async function updateSetting(db, interaction, key, newValue) {
     try {
         await setSetting(db, interaction.guild.id, key, newValue);
         await interaction.followUp(`Successfully updated ${key} to "${newValue}".`);

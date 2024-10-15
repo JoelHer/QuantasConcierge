@@ -91,7 +91,7 @@ async function handleButtonInteraction(interaction) {
         const collector = interaction.channel.createMessageCollector({ time: 15000 });
 
         collector.on('collect', async message => {
-            await updateSetting(interaction, key, message.content);
+            await updateSetting(db, interaction, key, message.content);
             collector.stop(); // Stop the collector after getting the response
         });
 
