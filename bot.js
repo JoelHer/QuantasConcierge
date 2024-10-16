@@ -34,13 +34,12 @@ db.run(`CREATE TABLE IF NOT EXISTS guilds (
 )`);
   
 db.run(`CREATE TABLE IF NOT EXISTS settings (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	guildid INTEGER NOT NULL,
-	key TEXT NOT NULL,
-	value TEXT NOT NULL,
-	FOREIGN KEY(guildid) REFERENCES guilds(id)
+    id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    FOREIGN KEY(id) REFERENCES guilds(id),
+    UNIQUE(id, key)
 )`);
-  
 
 // Export the db instance
 module.exports.db = db;
