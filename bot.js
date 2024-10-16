@@ -3,12 +3,55 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
 const { token } = require('./config.json');
+const { verifySettingsJson } = require('./utility/dbHelper');
+const { settingsTemplate } = require('./commands/general/settings.json');
+
+if (!verifySettingsJson(settingsTemplate)){
+	console.log("Invalid settings.json file.");
+	process.exit(1);
+}
+
 // Create a new client instance
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({ 
+	intents: [
+		GatewayIntentBits.Guilds,
+		GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent, // Required for reading message content
+	] 
+});
 
 client.commands = new Collection();
 const foldersPath = path.join(__dirname, 'commands');
 const commandFolders = fs.readdirSync(foldersPath);
+
+
+// Require the necessary libs for the database
+const sqlite3 = require('sqlite3').verbose();
+
+// Connect to a SQLite database (it creates the database file if it doesn't exist)
+const db = new sqlite3.Database('mydatabase.db', (err) => {
+  if (err) {
+    return console.error(err.message);
+  }
+  console.log('Connected to the SQLite database.');
+});
+
+db.run(`CREATE TABLE IF NOT EXISTS guilds (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	guildid TEXT NOT NULL
+)`);
+  
+db.run(`CREATE TABLE IF NOT EXISTS settings (
+    id INTEGER NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    FOREIGN KEY(id) REFERENCES guilds(id),
+    UNIQUE(id, key)
+)`);
+
+// Export the db instance
+module.exports.db = db;
+
 
 // Register Commands in the ./commands dir
 for (const folder of commandFolders) {
@@ -39,54 +82,6 @@ for (const file of eventFiles) {
 	}
 }
 
-class crew
-{
-	constructor(username, role)
-	{
-		this.username = username;
-		this.role = role;
-	}
-}
-
-class passenger
-{
-	constructor(username, ticketid)
-	{
-		this.username = username;
-		this.ticketid = ticketid;
-	}
-}
-
-class event
-{
-	constructor(title, desc, datetime)
-	{
-		this.title = title;
-		this.desc = desc;
-		this.datetime = datetime;
-		this.crewmembers = [];
-		this.passengers = [];
-	}
-
-	addcrew(user)
-	{
-		this.crewmembers[crewmembers.length] = user;
-	}
-
-	addpassenger(user)
-	{
-		this.passengers[passengers.length] = user;
-	}
-
-	returnpassnum()
-	{
-		return this.passengers.length;
-	}
-}
-const eventlist = [];
-var tokencounter = 0;
-
-
-
 // Login to Discord with your client's token
 client.login(token);
+module.exports.client = client;
