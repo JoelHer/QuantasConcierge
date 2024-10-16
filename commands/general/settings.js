@@ -3,6 +3,57 @@ const { db } = require('../../bot');
 const { settingsTemplate } = require('./settings.json')
 const { setSetting, updateSetting, getSetting } = require('../../utility/dbHelper');
 
+async function parseRole(inputString, guild) {
+    // Regular expressions to extract the user and role mentions
+    const userMentionRegex = /<@!?(\d+)>/;
+    const roleMentionRegex = /<@&(\d+)>/;
+  
+    // Check if the input is a user mention
+    const userMatch = inputString.match(userMentionRegex);
+    if (userMatch) {
+        const userId = userMatch[1];
+        try {
+            const user = await client.users.fetch(userId);
+            return user ? user.username : `Unknown User (${userId})`;
+        } catch (error) {
+            console.error(`Could not fetch user with ID ${userId}:`, error);
+            return `Unknown User (${userId})`;
+        }
+    }
+  
+    // Check if the input is a role mention
+    const roleMatch = inputString.match(roleMentionRegex);
+    if (roleMatch) {
+        const roleId = roleMatch[1];
+        const role = guild.roles.cache.get(roleId);
+        return role ? role.name : `Unknown Role (${roleId})`;
+    }
+  
+    return inputString;
+}
+
+async function parsesetting(_value, _datatype, guild) {
+    console.log(_value, _datatype);
+    if (_datatype === 'bool') {
+        return (_value === 'true');
+    } else if (_datatype === 'int') {
+        return parseInt(_value);
+    } else if (_datatype === 'float') {
+        return parseFloat(_value);
+    } else if (_datatype === 'string') {
+        return _value;
+    } else if (_datatype === 'role') {
+        var _result = await parseRole(_value, guild)
+        console.log("res: ");
+        return _result;
+    } else if (_datatype.startsWith('array[')) {
+        const _arrtype = _datatype.substring(6, _datatype.length - 1);
+        const results = await Promise.all(_value.split(' ').map(x => parsesetting(x, _arrtype, guild)));
+        return results;
+    }
+}
+
+
 function getMainMenu(interaction) {
     const mainMenuEmbed = new EmbedBuilder()
         .setColor(0x00FFFF)
@@ -29,7 +80,7 @@ async function getGeneralSettingsMenu(interaction) {
     const row = new ActionRowBuilder(); // Initialize row here
 
     for (const [key, setting] of Object.entries(settingsTemplate.general)) {
-        const value = await getSetting(db, interaction.guild.id, key);
+        const value = parsesetting(await getSetting(db, interaction.guild.id, key));
         _strb += `\`\`\`${setting.friendlyName}: ${(!value) ? "unset" : value}\n\`\`\``;
 
         const button = new ButtonBuilder()
@@ -62,7 +113,7 @@ async function getRoleSettingsMenu(interaction) {
     const row = new ActionRowBuilder()
 
     for (const [key, setting] of Object.entries(settingsTemplate.role)) {
-        const value = await getSetting(db, interaction.guild.id, key);
+        const value = await parsesetting(await getSetting(db, interaction.guild.id, key), setting.dataType, interaction.guild);
         _strb += `\`\`\`${setting.friendlyName}: ${(!value) ? "unset" : value}\n\`\`\``;
 
         const button = new ButtonBuilder()

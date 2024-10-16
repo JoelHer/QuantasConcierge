@@ -13,7 +13,7 @@
         "role": {
             "job-mention": {
                 "friendlyName": "Roles to mention in job post",
-                "dataType": "array[roles]"
+                "dataType": "array[role]"
             }
         }
     }
