@@ -2,12 +2,18 @@
     "settingsTemplate": {
         "general": {
             "testValue": {
-                "friendlyName": "Test Value with key 'testValue'",
+                "friendlyName": "Test Value",
                 "dataType": "string"
             },
             "numberer": {
                 "friendlyName": "Cool ass number",
                 "dataType": "int"
+            }
+        },
+        "role": {
+            "job-mention": {
+                "friendlyName": "Roles to mention in job post",
+                "dataType": "array[roles]"
             }
         }
     }

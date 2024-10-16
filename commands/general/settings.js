@@ -57,13 +57,28 @@ async function getGeneralSettingsMenu(interaction) {
 
 
 
-function getRoleSettingsMenu(interaction) {
+async function getRoleSettingsMenu(interaction) {
+    var _strb = "";
+    const row = new ActionRowBuilder()
+
+    for (const [key, setting] of Object.entries(settingsTemplate.role)) {
+        const value = await getSetting(db, interaction.guild.id, key);
+        _strb += `\`\`\`${setting.friendlyName}: ${(!value) ? "unset" : value}\n\`\`\``;
+
+        const button = new ButtonBuilder()
+            .setCustomId(`change_${key}`)
+            .setLabel(`Change ${setting.friendlyName}`)
+            .setStyle(ButtonStyle.Secondary);
+        
+        row.addComponents(button); // Now you can add components to row
+    }
+
     const roleSettingsEmbed = new EmbedBuilder()
         .setColor(0xFF00FF)
         .setTitle('Role Settings')
-        .setDescription('Edit role settings and permissions here.');
+        .setDescription('Edit role settings and permissions here.\n' + _strb);
 
-    const row = new ActionRowBuilder().addComponents(
+    row.addComponents(
         new ButtonBuilder()
             .setCustomId('back')
             .setLabel('Back')
