@@ -2,12 +2,12 @@
     "settingsTemplate": {
         "general": {
             "testValue": {
-                "value": "string",
-                "friendlyName": "Test Value with key 'testValue'"
+                "friendlyName": "Test Value with key 'testValue'",
+                "dataType": "string"
             },
             "numberer": {
-                "value": 0,
-                "friendlyName": "Cool ass number"
+                "friendlyName": "Cool ass number",
+                "dataType": "int"
             }
         }
     }

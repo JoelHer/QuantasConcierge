@@ -1,3 +1,10 @@
+function verifySettingsJson(obj) {
+    return Object.values(obj).every(section => 
+        Object.values(section).every(item => item.friendlyName && item.dataType)
+    );
+}
+
+
 async function setSetting(db, id, key, value) {
     console.log(`Setting ${key} to ${value} for guild ${id}`);
     return new Promise((resolve, reject) => {
@@ -57,5 +64,6 @@ async function updateSetting(db, interaction, key, newValue) {
 module.exports = {
     setSetting,
     getSetting,
-    updateSetting
+    updateSetting,
+    verifySettingsJson
 };

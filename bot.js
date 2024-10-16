@@ -3,6 +3,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
 const { token } = require('./config.json');
+const { verifySettingsJson } = require('./utility/dbHelper');
+const { settingsTemplate } = require('./commands/general/settings.json');
+
+if (!verifySettingsJson(settingsTemplate)){
+	console.log("Invalid settings.json file.");
+	process.exit(1);
+}
+
 // Create a new client instance
 const client = new Client({ 
 	intents: [
