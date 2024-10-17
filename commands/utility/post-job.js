@@ -2,6 +2,7 @@ const { SlashCommandBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuil
 const { EmbedBuilder } = require('discord.js');
 const { getSetting } = require('../../utility/dbHelper');
 const { db } = require('../../bot');
+const { v4: uuidv4 } = require('uuid');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -19,6 +20,10 @@ module.exports = {
             option.setName('channel')
                 .setDescription('Channel to post in')
                 .setRequired(true))
+        .addNumberOption(option =>
+            option.setName('timestamp')
+                .setDescription('Used to schedule the event for internal purposes. The format is unix timestamp as a number.')
+                .setRequired(true))
         .addStringOption(option =>
             option.setName('color')
                 .setDescription('Sets the color of the embed in hex. Default is 0x0099FF')
@@ -30,6 +35,7 @@ module.exports = {
         const description = interaction.options.getString('description');
         const color = interaction.options.getString('color');
         const channel = interaction.options.getChannel('channel');
+        const timestamp = interaction.options.getNumber('timestamp');
 
         // If the user has a nickname, use that instead of their username TODO: Fix it to user the proper displayed name.
         const name = (interaction.member.nickname)?(interaction.member.nickname):(interaction.member.displayName)
@@ -85,6 +91,14 @@ module.exports = {
                     await message.react('🔫');
                     await message.react('🍾');
                     await message.react('❔');
+
+                    console.log(uuidv4(),interaction.guild.id, timestamp)
+                    db.run(`INSERT INTO events (uuid, guildid, timestamp) VALUES (?, ?, ?)`, [uuidv4(),interaction.guild.id, timestamp], function (err, row) {
+                        if (err) {
+                            console.error(err.message);
+                        }
+                        console.log(row)
+                    });
                 } else if (confirmation.customId === 'cancel') {
                     await confirmation.update({ content: 'Action cancelled', components: [], embeds: [] });
                 }

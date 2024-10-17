@@ -40,6 +40,33 @@ db.run(`CREATE TABLE IF NOT EXISTS guilds (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	guildid TEXT NOT NULL
 )`);
+<<<<<<< Updated upstream
+=======
+
+db.run(`CREATE TABLE IF NOT EXISTS events (
+	uuid TEXT PRIMARY KEY,
+	guildid TEXT NOT NULL,
+	timestamp INTEGER NOT NULL,
+	FOREIGN KEY(guildid) REFERENCES guilds(id)
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS announcements (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	guildid TEXT NOT NULL,
+	messageid TEXT NOT NULL,
+	FOREIGN KEY(guildid) REFERENCES guilds(id)
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS jobs (
+	jobid INTEGER PRIMARY KEY AUTOINCREMENT,
+	eventid TEXT NOT NULL,
+	userid TEXT,
+	guildid TEXT NOT NULL,
+	timestamp INTEGER NOT NULL,
+	FOREIGN KEY(guildid) REFERENCES guilds(id),
+	FOREIGN KEY(eventid) REFERENCES events(uuid)
+)`);
+>>>>>>> Stashed changes
   
 db.run(`CREATE TABLE IF NOT EXISTS settings (
     id INTEGER NOT NULL,
