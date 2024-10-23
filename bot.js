@@ -40,8 +40,6 @@ db.run(`CREATE TABLE IF NOT EXISTS guilds (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	guildid TEXT NOT NULL
 )`);
-<<<<<<< Updated upstream
-=======
 
 db.run(`CREATE TABLE IF NOT EXISTS events (
 	uuid TEXT PRIMARY KEY,
@@ -66,7 +64,6 @@ db.run(`CREATE TABLE IF NOT EXISTS jobs (
 	FOREIGN KEY(guildid) REFERENCES guilds(id),
 	FOREIGN KEY(eventid) REFERENCES events(uuid)
 )`);
->>>>>>> Stashed changes
   
 db.run(`CREATE TABLE IF NOT EXISTS settings (
     id INTEGER NOT NULL,

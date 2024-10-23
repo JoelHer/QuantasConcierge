@@ -33,7 +33,7 @@ async function parseRole(inputString, guild) {
 }
 
 async function parsesetting(_value, _datatype, guild) {
-    console.log(_value, _datatype);
+    if (!_value) return;
     if (_datatype === 'bool') {
         return (_value === 'true');
     } else if (_datatype === 'int') {
@@ -44,7 +44,6 @@ async function parsesetting(_value, _datatype, guild) {
         return _value;
     } else if (_datatype === 'role') {
         var _result = await parseRole(_value, guild)
-        console.log("res: ");
         return _result;
     } else if (_datatype.startsWith('array[')) {
         const _arrtype = _datatype.substring(6, _datatype.length - 1);
