@@ -54,7 +54,7 @@ module.exports = {
             .setAuthor({ name: 'Quantas Starlines', iconURL: 'https://cdn.discordapp.com/avatars/1295043243641274378/5bf928c18697f98d5131022c3d3b9454?size=256' })
             .setDescription(description)
             .addFields(
-                { name: 'Able to/interested to participate?', value: 'React below with the roles you could fulfil (🧑🏻‍✈️ for pilot, 🪠 for escort, 🔫 for onboard security, 🍾 for bartender and react with both your role and with ❔ emoji for maybe). Only react with roles that you are trained for (roles that you also have in the discord)!\n'+_roles },
+                { name: 'Able to/interested to participate?', value: 'React below with the roles you could fulfil (🧑🏻‍✈️ for pilot, 🪠 for escort, 🔫 for onboard security, 🍾 for bartender and react with both your role and with ❔ emoji for maybe). Only react with roles that you are trained for (roles that you also have in the discord)!\n'+((_roles)? _roles:" ")},
             )
             .setImage('https://media.discordapp.net/attachments/1070062643055964241/1288236074929225760/marcel-van-vuuren-aaron-halo-web-01.png?ex=670e2816&is=670cd696&hm=01a7d7435f53bb567f0b6b268c9c3c07cfe1d28acfc732ca67f74b59d82a78ec&=&format=webp&quality=lossless&width=1100&height=424')
             .setTimestamp()
@@ -92,12 +92,18 @@ module.exports = {
                     await message.react('🍾');
                     await message.react('❔');
 
-                    console.log(uuidv4(),interaction.guild.id, timestamp)
-                    db.run(`INSERT INTO events (uuid, guildid, timestamp) VALUES (?, ?, ?)`, [uuidv4(),interaction.guild.id, timestamp], function (err, row) {
+                    let uuid = uuidv4()
+                    db.run(`INSERT INTO events (uuid, guildid, title, description, timestamp) VALUES (?, ?, ?, ?, ?)`, [uuid, interaction.guild.id, title, description, timestamp], function (err, row) {
                         if (err) {
                             console.error(err.message);
+                        } else {
+                            db.run(`INSERT INTO announcements (guildid, messageid, channelid, eventuuid) VALUES (?, ?, ?, ?)`, [interaction.guild.id, message.id, message.channel.id, uuid], function (err, row) {
+                                if (err) {
+                                    console.error(err.message);
+                                } 
+                                console.log("Successfully inserted event and announcement into db.")
+                            });
                         }
-                        console.log(row)
                     });
                 } else if (confirmation.customId === 'cancel') {
                     await confirmation.update({ content: 'Action cancelled', components: [], embeds: [] });

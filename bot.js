@@ -17,6 +17,8 @@ const client = new Client({
 		GatewayIntentBits.Guilds,
 		GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent, // Required for reading message content
+		GatewayIntentBits.GuildMessageReactions,
+		GatewayIntentBits.MessageContent,
 	] 
 });
 
@@ -45,13 +47,19 @@ db.run(`CREATE TABLE IF NOT EXISTS events (
 	uuid TEXT PRIMARY KEY,
 	guildid TEXT NOT NULL,
 	timestamp INTEGER NOT NULL,
+	title TEXT,
+	description TEXT,
+	imageurl TEXT,
 	FOREIGN KEY(guildid) REFERENCES guilds(id)
 )`);
 
 db.run(`CREATE TABLE IF NOT EXISTS announcements (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	eventuuid TEXT NOT NULL,
 	guildid TEXT NOT NULL,
 	messageid TEXT NOT NULL,
+	channelid TEXT NOT NULL,
+	FOREIGN KEY(eventuuid) REFERENCES events(uuid),
 	FOREIGN KEY(guildid) REFERENCES guilds(id)
 )`);
 
@@ -61,6 +69,7 @@ db.run(`CREATE TABLE IF NOT EXISTS jobs (
 	userid TEXT,
 	guildid TEXT NOT NULL,
 	timestamp INTEGER NOT NULL,
+	role TEXT,
 	FOREIGN KEY(guildid) REFERENCES guilds(id),
 	FOREIGN KEY(eventid) REFERENCES events(uuid)
 )`);
@@ -106,6 +115,65 @@ for (const file of eventFiles) {
 	}
 }
 
+
+
+
+
 // Login to Discord with your client's token
-client.login(token);
+client.login(token).then(async () => {
+    // Get all announcements that are in the future
+    const timestamp = Math.floor(Date.now() / 1000);
+    db.all(`SELECT * FROM events JOIN announcements ON events.uuid = announcements.eventuuid WHERE timestamp > ?;`, [timestamp], async (err, rows) => {
+        if (err) {
+            console.error(err.message);
+            return;
+        }
+
+        try {
+            if (!rows || rows.length === 0) return;
+
+            // Function to handle the fetched message and setup the collector
+            const handleMessage = async (messageId, channel, row) => {
+                try {
+                    const fetchedMessage = await channel.messages.fetch(messageId);
+
+                    if (fetchedMessage) {
+                        const filter = (reaction, user) => {
+                            return !user.bot;
+                        };
+                        const collector = fetchedMessage.createReactionCollector({ filter, time: 999999999 });
+
+                        collector.on('collect', (reaction, user) => {
+                            console.log(`${user.tag} reacted with ${reaction.emoji.name}`);
+							db.run(`INSERT INTO jobs (eventid, userid, guildid, timestamp, role) VALUES (?, ?, ?, ?, ?)`, [row.uuid, user.id, row.guildid, Math.floor(Date.now() / 1000), reaction.emoji.name], function (err, row) {
+                                if (err) {
+                                    console.error(err.message);
+                                } 
+                                console.log("Successfully inserted emoji reactio aiojspdi0jiapoüsjd into db.")
+                            });
+                        });
+                    } else {
+                        console.log('Message not found');
+                    }
+                } catch (error) {
+                    console.error('Error fetching message:', error);
+                }
+            };
+
+            for (const row of rows) {
+                const messageId = row.messageid; // Assuming your row has a messageId property
+                const channelId = row.channelid; // Get the channel ID from the row
+
+                // Fetch the channel using the channelId
+                const channel = await client.channels.fetch(channelId);
+
+                // Now call the handleMessage function
+                await handleMessage(messageId, channel, row); // Call the async function with await
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    });
+});
+
 module.exports.client = client;
