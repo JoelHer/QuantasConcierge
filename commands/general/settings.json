@@ -3,7 +3,7 @@
         "management": {
             "management_updates_channel": {
                 "friendlyName": "Management Updates Channel",
-                "dataType": "string"
+                "dataType": "channel"
             }
         },
         "general": {

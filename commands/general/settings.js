@@ -32,6 +32,16 @@ async function parseRole(inputString, guild) {
     return inputString;
 }
 
+async function parseChannel(inputString, guild) {
+    const channelMatch = inputString.match(/<#(\d+)>/);
+    if (channelMatch) {
+        const channelId = channelMatch[1];
+        const channel = guild.channels.cache.get(channelId);
+        return channel ? "#"+channel.name : `Unknown Channel (${channelId})`;
+    }
+    return inputString;
+}
+
 async function parsesetting(_value, _datatype, guild) {
     if (!_value) return;
     if (_datatype === 'bool') {
@@ -44,6 +54,9 @@ async function parsesetting(_value, _datatype, guild) {
         return _value;
     } else if (_datatype === 'role') {
         var _result = await parseRole(_value, guild)
+        return _result;
+    } else if (_datatype === 'channel') {
+        var _result = await parseChannel(_value, guild)
         return _result;
     } else if (_datatype.startsWith('array[')) {
         const _arrtype = _datatype.substring(6, _datatype.length - 1);
