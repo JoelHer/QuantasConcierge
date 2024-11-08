@@ -55,6 +55,7 @@ db.run(`CREATE TABLE IF NOT EXISTS events (
 
 db.run(`CREATE TABLE IF NOT EXISTS announcements (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
 	eventuuid TEXT NOT NULL,
 	guildid TEXT NOT NULL,
 	messageid TEXT NOT NULL,

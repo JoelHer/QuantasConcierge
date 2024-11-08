@@ -97,12 +97,21 @@ module.exports = {
                         if (err) {
                             console.error(err.message);
                         } else {
-                            db.run(`INSERT INTO announcements (guildid, messageid, channelid, eventuuid) VALUES (?, ?, ?, ?)`, [interaction.guild.id, message.id, message.channel.id, uuid], function (err, row) {
+                            db.run(`INSERT INTO announcements (type, guildid, messageid, channelid, eventuuid) VALUES ("EMPLOYEE_JOBPOST",?, ?, ?, ?)`, [interaction.guild.id, message.id, message.channel.id, uuid], function (err, row) {
                                 if (err) {
                                     console.error(err.message);
                                 } 
                                 console.log(typeof(interaction))
-                                interaction.followUp({ content: 'Event has been posted successfully. Where do you want to receive updates?', components: [], embeds: [], ephemeral: true });
+                                getSetting(db, interaction.guild.id, 'management_updates_channel').then((val) => {
+                                    if (val) {
+                                        const channel = interaction.guild.channels.cache.get(val.replace(/[<#>]/g, ""));
+                                        if (channel) {
+                                            channel.send({ content: 'CHANGE ME TO EMBED \n# New job posted in <#'+message.channel.id+'>' });
+                                        }
+                                    } else {
+                                        interaction.followUp({ content: 'Event has been posted successfully. Where do you want to receive updates? This preference will be saved for future posts and can be edited with /settings in the management menu.', components: [], embeds: [], ephemeral: true });
+                                    }
+                                })
                                 
                             });
                         }
