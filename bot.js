@@ -31,7 +31,7 @@ const commandFolders = fs.readdirSync(foldersPath);
 const sqlite3 = require('sqlite3').verbose();
 
 // Connect to a SQLite database (it creates the database file if it doesn't exist)
-const db = new sqlite3.Database('mydatabase.db', (err) => {
+const db = new sqlite3.Database('internal-database.db', (err) => {
   if (err) {
     return console.error(err.message);
   }

@@ -159,9 +159,7 @@ async function getManagementSettingsMenu(interaction) {
     const row = new ActionRowBuilder()
 
     for (const [key, setting] of Object.entries(settingsTemplate.management)) {
-        console.log(key, setting);
         const value = await parsesetting(await getSetting(db, interaction.guild.id, key), setting.dataType, interaction.guild);
-        console.log(value);
         _strb += `\`\`\`${setting.friendlyName}: ${(!value) ? "unset" : value}\n\`\`\``;
 
         const button = new ButtonBuilder()
@@ -174,7 +172,7 @@ async function getManagementSettingsMenu(interaction) {
 
     const managementSettingsEmbed = new EmbedBuilder()
         .setColor(0xFF00FF)
-        .setTitle('Role Settings')
+        .setTitle('Management Settings')
         .setDescription('Edit Management settings here.\n' + _strb);
 
     row.addComponents(
