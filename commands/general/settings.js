@@ -215,7 +215,6 @@ async function handleButtonInteraction(interaction) {
             }
         });
     }
-
 }
 
 function createCollector(message, interaction) {
@@ -268,6 +267,5 @@ module.exports = {
         // Fetch the message and create the initial collector
         const message = await interaction.fetchReply();
         createCollector(message, interaction);
-        
     },
 };
