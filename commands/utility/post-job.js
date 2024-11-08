@@ -85,7 +85,7 @@ module.exports = {
                 const confirmation = await response.awaitMessageComponent({ time: 60_000 });
                 if (confirmation.customId === 'confirm') {
                     const message = await channel.send({ embeds: [exampleEmbed] });
-                    await confirmation.update({ content: 'Post has been published successfully!', components: [], embeds: [] });
+                    await interaction.editReply({ content: 'Sending Message...', components: [], embeds: [], ephemeral: true });
                     await message.react('🧑‍✈️');
                     await message.react('🪠');
                     await message.react('🔫');
@@ -101,7 +101,9 @@ module.exports = {
                                 if (err) {
                                     console.error(err.message);
                                 } 
-                                console.log("Successfully inserted event and announcement into db.")
+                                console.log(typeof(interaction))
+                                interaction.followUp({ content: 'Event has been posted successfully. Where do you want to receive updates?', components: [], embeds: [], ephemeral: true });
+                                
                             });
                         }
                     });

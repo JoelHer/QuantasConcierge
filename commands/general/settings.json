@@ -1,5 +1,11 @@
 {
     "settingsTemplate": {
+        "updates": {
+            "management_updates_channel": {
+                "friendlyName": "Management Updates Channel",
+                "dataType": "string"
+            }
+        },
         "general": {
             "testValue": {
                 "friendlyName": "Test Value",

@@ -149,7 +149,6 @@ client.login(token).then(async () => {
                                 if (err) {
                                     console.error(err.message);
                                 } 
-                                console.log("Successfully inserted emoji reactio aiojspdi0jiapoüsjd into db.")
                             });
                         });
                     } else {
