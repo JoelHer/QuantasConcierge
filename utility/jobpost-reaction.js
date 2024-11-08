@@ -17,7 +17,9 @@ module.exports = {
                     db.run(`INSERT INTO jobs (eventid, userid, guildid, timestamp, role) VALUES (?, ?, ?, ?, ?)`, [eventuuid, user.id, guildid, Math.floor(Date.now() / 1000), reaction.emoji.name], function (err, row) {
                         if (err) {
                             console.error(err.message);
+                            return;
                         } 
+                        module.exports.updateManagementMessage(db, client, eventuuid);
                     });
                 });
             } else {
@@ -38,26 +40,61 @@ module.exports = {
                 if (err) {
                     console.error(err.message);
                     reject("Error fetching data from internal database. Please contact the bot owner.");
+                    return;
                 }
-                console.log(rows)
-                let result = "";
+                
+                const roles = {};
+                
                 rows.forEach((row) => {
-                    result += row.role + "  <@"+row.userid+">\n";
+                    if (!roles[row.role]) {
+                        roles[row.role] = [];
+                    }
+                    roles[row.role].push(row.userid);
                 });
-                resolve("None");  
-            })
+
+                result = ""
+
+                Object.entries(roles).forEach(entry => {
+                    const [key, value] = entry;
+                    console.log(key, value);
+                    if (key != "❔") {
+                        result += key+":\n";
+                        value.forEach(valuekey => {
+                            var ind = "🟢"
+                            try {
+                                ind = (roles["❔"].includes(valuekey))? "🟠":"🟢"
+                            } catch {
+
+                            }
+                            result += `‎     ‎${ind}  <@${valuekey}>\n`;
+                        });
+                    }
+                })
+                
+                resolve((result == "") ? "No employees have signed up yet." : result);
+            });           
         });
         //'<@&1296029870794477639>:\n‎‎ ‎ ‎ ‎ ‎ ‎🟢  <@548863702334439434>\n‎ ‎ ‎ ‎ ‎ ‎🟠  <@548863702334439434>\n‎ ‎ ‎ ‎ ‎ ‎🟢  <@548863702334439434>\n\n<@&1296029937450356746>:\n‎ ‎ ‎ ‎ ‎ ‎🟢  <@548863702334439434>\n‎ ‎ ‎ ‎ ‎ ‎🟢  <@548863702334439434>\n\n<@&1296029968102326293>:\n‎ ‎ ‎ ‎ ‎ ‎🟢  <@548863702334439434>\n\n'
     },
-    updateManagementMessage(eventuuid) {
-        console.log("Updating management message for event "+eventuuid);
+    updateManagementMessage(db, client, eventuuid) {
+        db.all(`SELECT * from events join announcements ON announcements.eventuuid = events.uuid WHERE type = "INTERNAL_EVENTMANAGER" and uuid = ?;`, [eventuuid], function (err, row) {
+            if (err) {
+                console.error(err.message);
+            } else {
+                row = row[0]
+                client.guilds.cache.get(row.guildid).channels.cache.get(row.channelid).messages.fetch(row.messageid).then((msg) =>{
+                    module.exports.buildEventManagerMessage(db, eventuuid).then((newEmbed) => {
+                        msg.edit(newEmbed)
+                    })
+                });
+            }
+        })
     },
-    buildEventManagerMessage(db, eventid, description, channelId) {
+    buildEventManagerMessage(db, eventid) {
         console.log("Building event manager message for event "+eventid);
         return new Promise((resolve, reject) => {
             db.all(`SELECT * from events join announcements ON announcements.eventuuid = events.uuid WHERE uuid = ? LIMIT 1`, [eventid], function (err, row) {
                 row = row[0];
-                console.log(row)
                 if (err) {
                     console.error(err.message);
                     reject("Error fetching data from internal database. Please contact the bot owner.");

@@ -6,6 +6,7 @@ const { token } = require('./config.json');
 const { verifySettingsJson } = require('./utility/dbHelper');
 const { handleMessage } = require('./utility/jobpost-reaction');
 const { settingsTemplate } = require('./commands/general/settings.json');
+const { updateManagementMessage } = require('./utility/jobpost-reaction');
 
 if (!verifySettingsJson(settingsTemplate)){
 	console.log("Invalid settings.json file.");
@@ -118,7 +119,31 @@ for (const file of eventFiles) {
 }
 
 
+client.on('raw', (event) => {
+    if (event.t == 'MESSAGE_REACTION_REMOVE') {
+        let selfid = client.user.id
+        let emoji = event.d.emoji.name;
+        let userid = event.d.user_id;
+        let messageid = event.d.message_id;
+        
+        // check if there is a event, announcemnt in the database
+        // if so, remove the user's jobs on that event id
 
+        if (userid != selfid) {
+            db.all(`SELECT jobid, eventid FROM jobs JOIN events ON jobs.eventid = events.uuid JOIN announcements ON jobs.eventid = announcements.eventuuid WHERE messageid = ? AND role = ? AND userid = ?;`, [messageid, emoji, userid], async (err, rows) => {
+                rows.forEach(row => {
+                    db.run("DELETE FROM jobs WHERE jobid = ?;", [row.jobid], function(err) {
+                        if (err) {
+                            console.error(err.message);
+                        } else {
+                            updateManagementMessage(db, client, row.eventid);
+                        }
+                    });
+                });
+            })
+        }
+    }
+});
 
 
 // Login to Discord with your client's token
@@ -138,6 +163,7 @@ client.login(token).then(async () => {
                 const messageId = row.messageid;
                 const channelId = row.channelid;
                 const channel = await client.channels.fetch(channelId);
+                
                 await handleMessage(client, db, messageId, channel, row.uuid, row.guildid); //jopost-reaction.js
             }
         } catch (err) {
