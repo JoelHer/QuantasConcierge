@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { EmbedBuilder } = require('discord.js');
 const { getSetting } = require('../../utility/dbHelper');
+const { handleMessage } = require('../../utility/jobpost-reaction');
 const { db } = require('../../bot');
 const { v4: uuidv4 } = require('uuid');
 
@@ -160,6 +161,7 @@ module.exports = {
                         if (err) {
                             console.error(err.message);
                         } else {
+                            handleMessage(interaction.client, db, message.id, message.channel, uuid, interaction.guild.id);
                             db.run(`INSERT INTO announcements (type, guildid, messageid, channelid, eventuuid) VALUES ("EMPLOYEE_JOBPOST",?, ?, ?, ?)`, [interaction.guild.id, message.id, message.channel.id, uuid], function (err, row) {
                                 if (err) {
                                     console.error(err.message);

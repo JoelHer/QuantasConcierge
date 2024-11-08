@@ -4,6 +4,7 @@ const path = require('node:path');
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
 const { token } = require('./config.json');
 const { verifySettingsJson } = require('./utility/dbHelper');
+const { handleMessage } = require('./utility/jobpost-reaction');
 const { settingsTemplate } = require('./commands/general/settings.json');
 
 if (!verifySettingsJson(settingsTemplate)){
@@ -133,42 +134,11 @@ client.login(token).then(async () => {
         try {
             if (!rows || rows.length === 0) return;
 
-            // Function to handle the fetched message and setup the collector
-            const handleMessage = async (messageId, channel, row) => {
-                try {
-                    const fetchedMessage = await channel.messages.fetch(messageId);
-
-                    if (fetchedMessage) {
-                        const filter = (reaction, user) => {
-                            return !user.bot;
-                        };
-                        const collector = fetchedMessage.createReactionCollector({ filter, time: 999999999 });
-
-                        collector.on('collect', (reaction, user) => {
-                            console.log(`${user.tag} reacted with ${reaction.emoji.name}`);
-							db.run(`INSERT INTO jobs (eventid, userid, guildid, timestamp, role) VALUES (?, ?, ?, ?, ?)`, [row.uuid, user.id, row.guildid, Math.floor(Date.now() / 1000), reaction.emoji.name], function (err, row) {
-                                if (err) {
-                                    console.error(err.message);
-                                } 
-                            });
-                        });
-                    } else {
-                        console.log('Message not found');
-                    }
-                } catch (error) {
-                    console.error('Error fetching message:', error);
-                }
-            };
-
             for (const row of rows) {
-                const messageId = row.messageid; // Assuming your row has a messageId property
-                const channelId = row.channelid; // Get the channel ID from the row
-
-                // Fetch the channel using the channelId
+                const messageId = row.messageid;
+                const channelId = row.channelid;
                 const channel = await client.channels.fetch(channelId);
-
-                // Now call the handleMessage function
-                await handleMessage(messageId, channel, row); // Call the async function with await
+                await handleMessage(client, db, messageId, channel, row.uuid, row.guildid);
             }
         } catch (err) {
             console.error(err);
