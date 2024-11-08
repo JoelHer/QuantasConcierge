@@ -138,7 +138,7 @@ client.login(token).then(async () => {
                 const messageId = row.messageid;
                 const channelId = row.channelid;
                 const channel = await client.channels.fetch(channelId);
-                await handleMessage(client, db, messageId, channel, row.uuid, row.guildid);
+                await handleMessage(client, db, messageId, channel, row.uuid, row.guildid); //jopost-reaction.js
             }
         } catch (err) {
             console.error(err);

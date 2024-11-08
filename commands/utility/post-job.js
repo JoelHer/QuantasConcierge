@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { EmbedBuilder } = require('discord.js');
 const { getSetting } = require('../../utility/dbHelper');
-const { handleMessage } = require('../../utility/jobpost-reaction');
+const { handleMessage, buildEventManagerMessage } = require('../../utility/jobpost-reaction');
 const { db } = require('../../bot');
 const { v4: uuidv4 } = require('uuid');
 
@@ -29,69 +29,7 @@ module.exports = {
             option.setName('color')
                 .setDescription('Sets the color of the embed in hex. Default is 0x0099FF')
                 .setRequired(false)),
-    compileEmployeeStatus(eventuuid) {
-        return new Promise((resolve, reject) => {
-            db.all(`SELECT * FROM jobs WHERE eventid = ?`, [eventuuid], function (err, rows) {
-                if (err) {
-                    console.error(err.message);
-                    reject("Error fetching data from internal database. Please contact the bot owner.");
-                }
-                console.log(rows)
-                let result = "";
-                rows.forEach((row) => {
-                    result += row.role + "  <@"+row.userid+">\n";
-                });
-                resolve("None");  
-            })
-        });
-        //'<@&1296029870794477639>:\n‎‎ ‎ ‎ ‎ ‎ ‎🟢  <@548863702334439434>\n‎ ‎ ‎ ‎ ‎ ‎🟠  <@548863702334439434>\n‎ ‎ ‎ ‎ ‎ ‎🟢  <@548863702334439434>\n\n<@&1296029937450356746>:\n‎ ‎ ‎ ‎ ‎ ‎🟢  <@548863702334439434>\n‎ ‎ ‎ ‎ ‎ ‎🟢  <@548863702334439434>\n\n<@&1296029968102326293>:\n‎ ‎ ‎ ‎ ‎ ‎🟢  <@548863702334439434>\n\n'
-    },
-    compileGuestStatus(eventuuid) {
-        return new Promise((resolve, reject) => {
-            resolve("NOT IMPLEMENTED");
-        })
-    },
-    updateManagementMessage(eventuuid) {
-        console.log("Updating management message for event "+eventuuid);
-    },
-    buildEventManagerMessage(eventid, description, channelId) {
-        console.log("Building event manager message for event "+eventid);
-        return new Promise((resolve, reject) => {
-            db.all(`SELECT * from events join announcements ON announcements.eventuuid = events.uuid WHERE uuid = ? LIMIT 1`, [eventid], function (err, row) {
-                row = row[0];
-                console.log(row)
-                if (err) {
-                    console.error(err.message);
-                    reject("Error fetching data from internal database. Please contact the bot owner.");
-                } else {
-                    module.exports.compileEmployeeStatus(eventid).then((employees) => {
-                        module.exports.compileGuestStatus(eventid).then((guests) => {
-                            const eventManagementEmbed = new EmbedBuilder()
-                                .setColor(0x000dc1)
-                                .setTitle('Upcoming Tour: '+row.title)
-                                .addFields(
-                                    { name: 'Description:', value: row.description, inline: true },
-                                    { name: '\u200B', value: '\u200B' },
-                                    { name: 'When?', value: '<t:'+row.timestamp+':R>', inline: true },
-                                    { name: 'Job-Post Message', value: 'https://discord.com/channels/server/channel/msgid', inline: true },
-                                    { name: 'Announcement Message', value: 'Not sent yet. Use /pusblish', inline: true },
-                                    { name: '\u200B', value: '\u200B' },
-                                )
-                                .addFields(
-                                    { name: 'Employees', value: employees, inline: true },
-                                    { name: 'Participants', value: guests, inline: true },
-                                )
-                                .setTimestamp()
-                                .setFooter({ text: 'This message updates automatically.  Last update' });
-                
-                                
-                            resolve({ embeds: [eventManagementEmbed] })
-                        })
-                    })
-                }
-            })
-        })
-    },
+    
     async execute(interaction) {
         const _roles = await getSetting(db, interaction.guild.id, 'job-mention');
 
@@ -171,7 +109,7 @@ module.exports = {
                                     if (val) {
                                         const channel = interaction.guild.channels.cache.get(val.replace(/[<#>]/g, "")); // this regex removes the <# and > from the string
                                         if (channel) {
-                                            module.exports.buildEventManagerMessage(uuid).then((messageToSend) => {
+                                            buildEventManagerMessage(db, uuid).then((messageToSend) => {
                                                 channel.send(messageToSend).then(message => {
                                                     db.run(`INSERT INTO announcements (type, guildid, messageid, channelid, eventuuid) VALUES ("INTERNAL_EVENTMANAGER",?, ?, ?, ?)`, [message.guild.id, message.id, message.channel.id, uuid], function (err, row) {
                                                         interaction.followUp({ content: 'Event has been posted successfully. Management message has been posted to '+val, components: [], embeds: [], ephemeral: true });
