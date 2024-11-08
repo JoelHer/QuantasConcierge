@@ -92,15 +92,14 @@ function getMainMenu(interaction) {
 
 async function getGeneralSettingsMenu(interaction) {
     var _strb = "";
-
-    const row = new ActionRowBuilder(); // Initialize row here
+    const row = new ActionRowBuilder()
 
     for (const [key, setting] of Object.entries(settingsTemplate.general)) {
-        const value = parsesetting(await getSetting(db, interaction.guild.id, key));
+        const value = await parsesetting(await getSetting(db, interaction.guild.id, key), setting.dataType, interaction.guild);
         _strb += `\`\`\`${setting.friendlyName}: ${(!value) ? "unset" : value}\n\`\`\``;
 
         const button = new ButtonBuilder()
-            .setCustomId(`change_${key}`)
+            .setCustomId(`change=${key}`)
             .setLabel(`Change ${setting.friendlyName}`)
             .setStyle(ButtonStyle.Secondary);
         
@@ -108,18 +107,18 @@ async function getGeneralSettingsMenu(interaction) {
     }
 
     const generalSettingsEmbed = new EmbedBuilder()
-        .setColor(0x00FF00)
+        .setColor(0xFF00FF)
         .setTitle('General Settings')
-        .setDescription('Edit general bot settings here.\n' + _strb);
+        .setDescription('Edit General settings here.\n' + _strb);
 
-    const backButtonRow = new ActionRowBuilder().addComponents(
+    row.addComponents(
         new ButtonBuilder()
             .setCustomId('back')
             .setLabel('Back')
             .setStyle(ButtonStyle.Secondary)
     );
 
-    return { embeds: [generalSettingsEmbed], components: [row, backButtonRow] }; // Return both rows
+    return { embeds: [generalSettingsEmbed], components: [row] };
 }
 
 
@@ -133,7 +132,7 @@ async function getRoleSettingsMenu(interaction) {
         _strb += `\`\`\`${setting.friendlyName}: ${(!value) ? "unset" : value}\n\`\`\``;
 
         const button = new ButtonBuilder()
-            .setCustomId(`change_${key}`)
+            .setCustomId(`change=${key}`)
             .setLabel(`Change ${setting.friendlyName}`)
             .setStyle(ButtonStyle.Secondary);
         

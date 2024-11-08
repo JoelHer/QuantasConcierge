@@ -10,10 +10,6 @@
             "testValue": {
                 "friendlyName": "Test Value",
                 "dataType": "string"
-            },
-            "numberer": {
-                "friendlyName": "Cool ass number",
-                "dataType": "int"
             }
         },
         "role": {
