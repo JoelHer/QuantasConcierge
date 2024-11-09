@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
 const { token } = require('./config.json');
-const { verifySettingsJson } = require('./utility/dbHelper');
+const { verifySettingsJson, setSetting } = require('./utility/dbHelper');
 const { handleMessage } = require('./utility/jobpost-reaction');
 const { settingsTemplate } = require('./commands/general/settings.json');
 const { updateManagementMessage } = require('./utility/jobpost-reaction');
@@ -85,6 +85,33 @@ db.run(`CREATE TABLE IF NOT EXISTS settings (
     UNIQUE(id, key)
 )`);
 
+// Code for inserting default settings into the database, if they are unset
+db.all("SELECT * FROM guilds", function(err, guilds) {
+	db.all("SELECT * FROM settings", function(err, rows) {
+		if (err) {
+			console.error(err.message);
+			return;
+		} 
+	
+		for (const [key1, val1] of Object.entries(settingsTemplate)) {
+			for (const [key2, val2] of Object.entries(val1)) {
+				if (val2.default) { // checks if there is a default value
+					guilds.forEach(guild => {
+						rows.forEach(dbsetting => {
+							if (guild.guildid == dbsetting.id && dbsetting.key == key2) {
+							} else {
+								setSetting(db, guild.id, key2, val2.default);
+							}
+						});
+					});
+				}
+			}
+		}
+	});
+})
+
+
+
 // Export the db instance
 module.exports.db = db;
 
@@ -125,9 +152,6 @@ client.on('raw', (event) => {
         let emoji = event.d.emoji.name;
         let userid = event.d.user_id;
         let messageid = event.d.message_id;
-        
-        // check if there is a event, announcemnt in the database
-        // if so, remove the user's jobs on that event id
 
         if (userid != selfid) {
             db.all(`SELECT jobid, eventid FROM jobs JOIN events ON jobs.eventid = events.uuid JOIN announcements ON jobs.eventid = announcements.eventuuid WHERE messageid = ? AND role = ? AND userid = ?;`, [messageid, emoji, userid], async (err, rows) => {

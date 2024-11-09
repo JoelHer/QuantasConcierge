@@ -32,6 +32,11 @@ async function parseRole(inputString, guild) {
     return inputString;
 }
 
+async function parseEmojirole(inputString, guild) {
+    console.log(inputString, guild);
+    return "🧑‍✈️ -> Example-Role 1";
+}
+
 async function parseChannel(inputString, guild) {
     const channelMatch = inputString.match(/<#(\d+)>/);
     if (channelMatch) {
@@ -55,6 +60,9 @@ async function parsesetting(_value, _datatype, guild) {
     } else if (_datatype === 'role') {
         var _result = await parseRole(_value, guild)
         return _result;
+    } else if (_datatype === 'emojirole') {
+        var _result = await parseEmojirole(_value, guild)
+        return _result
     } else if (_datatype === 'channel') {
         var _result = await parseChannel(_value, guild)
         return _result;
@@ -198,23 +206,73 @@ async function handleButtonInteraction(interaction) {
         const key = interaction.customId.split('=')[1];
         const currentValue = await getSetting(db, interaction.guild.id, key);
 
-        await interaction.reply(`Current value for ${key} is "${currentValue}". Please provide a new value.`);
+        datatype = "unknown"
+
+        for (const [ikey, sietting] of Object.entries(settingsTemplate)) {
+            for (const [jkey, jietting] of Object.entries(sietting)) {
+                if (key == jkey) {
+                    datatype = jietting.dataType;
+                }
+            }
+        }
+
+        await interaction.reply(`Current value for ${key} is "${currentValue}". Please provide a new value in form of the datatype ${datatype}.`);
 
         const filter = response => response.author.id === interaction.user.id;
 
-        const collector = interaction.channel.createMessageCollector({ time: 15000 });
+        const collector = interaction.channel.createMessageCollector({ time: 60000 });
 
         collector.on('collect', async message => {
-            await updateSetting(db, interaction, key, message.content);
-            collector.stop(); // Stop the collector after getting the response
+            parsedData = parseDatatypes(datatype, message.content)
+            if (!parsedData) {
+                interaction.followUp(`Invalid input, please provide a valid ${datatype} value.`);
+                return;
+            } else {
+                await updateSetting(db, interaction, key, );
+                collector.stop(); 
+            }
         });
-
+        
         collector.on('end', collected => {
             if (collected.size === 0) {
                 interaction.followUp('No response received, setting change cancelled.');
             }
         });
     }
+}
+
+function parseDatatypes (datatype, data) {
+    var res;
+
+    switch (datatype) {
+        case 'bool':
+            res = data.toLowerCase() === 'true' || data.toLowerCase() === 'false' ? data : null;
+            break;
+        case 'int':
+            res = parseInt(data);
+            break;
+        case 'float':
+            res = parseFloat(data);
+            break;
+        case 'string':
+            res = data;
+            break;
+        case 'role':
+            res = data;
+            break;
+        case 'emojirole':
+            res = data;
+            break;
+        case 'channel':
+            res = data;
+            break;
+
+        default:
+            res = data;
+            break;
+    }
+    console.log("parsed data: ", res);
+    return res; 
 }
 
 function createCollector(message, interaction) {

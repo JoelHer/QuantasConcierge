@@ -6,7 +6,6 @@ function verifySettingsJson(obj) {
 
 
 async function setSetting(db, id, key, value) {
-    console.log(`Setting ${key} to ${value} for guild ${id}`);
     return new Promise((resolve, reject) => {
         db.run(`INSERT INTO settings (id, key, value) 
                 VALUES (?, ?, ?)

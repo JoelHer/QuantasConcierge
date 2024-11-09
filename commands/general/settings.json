@@ -16,6 +16,31 @@
             "job-mention": {
                 "friendlyName": "Roles to mention in job post",
                 "dataType": "array[role]"
+            },
+            "unsureEmojirole": {
+                "friendlyName": "Unsure Emoji Role",
+                "dataType": "emojirole",
+                "default": "❔=1304783244948017192"
+            },
+            "pilotEmojirole": {
+                "friendlyName": "Pilot Emoji Role",
+                "dataType": "emojirole",
+                "default": "🧑🏻‍✈️=1296029870794477639"
+            },
+            "escortEmojirole": {
+                "friendlyName": "Escort Emoji Role",
+                "dataType": "emojirole",
+                "default": "🪠=1296029937450356746"
+            },
+            "securityEmojirole": {
+                "friendlyName": "Security Emoji Role",
+                "dataType": "emojirole",
+                "default": "🔫=1296029968102326293"
+            },
+            "bartenderEmojirole": {
+                "friendlyName": "Bartender Emoji Role",
+                "dataType": "emojirole",
+                "default": "🍾=1304783164094287942"
             }
         }
     }
