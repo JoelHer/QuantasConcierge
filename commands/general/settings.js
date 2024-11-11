@@ -186,7 +186,7 @@ async function handleButtonInteraction(interaction) {
 
         var informDataMsg = await interaction.reply({ content: `Current value for ${key} is "${currentValue}". Please provide a new value in form of the datatype ${datatype}.`, ephemeral: true });
 
-        const filter = response => response.author.id === interaction.user.id; // TODO: IMPLEMENT THIS
+        const filter = response => response.author.id === interaction.user.id; 
 
         const collector = interaction.channel.createMessageCollector({ filter: filter, time: 60000 });
 
