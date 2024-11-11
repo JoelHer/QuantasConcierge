@@ -8,6 +8,10 @@
                 "management_updates_channel": {
                     "friendlyName": "Management Updates Channel",
                     "dataType": "channel"
+                },
+                "job_post_channel": {
+                    "friendlyName": "Job Post Channel",
+                    "dataType": "channel"
                 }
             }
         },

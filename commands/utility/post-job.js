@@ -17,10 +17,6 @@ module.exports = {
             option.setName('description')
                 .setDescription('Description of the post')
                 .setRequired(true))
-        .addChannelOption(option =>
-            option.setName('channel')
-                .setDescription('Channel to post in')
-                .setRequired(true))
         .addNumberOption(option =>
             option.setName('timestamp')
                 .setDescription('Used to schedule the event for internal purposes. The format is unix timestamp as a number.')
@@ -36,17 +32,52 @@ module.exports = {
         const title = interaction.options.getString('title');
         const description = interaction.options.getString('description');
         const color = interaction.options.getString('color');
-        const channel = interaction.options.getChannel('channel');
         const timestamp = interaction.options.getNumber('timestamp');
 
         // If the user has a nickname, use that instead of their username TODO: Fix it to user the proper displayed name.
         const name = (interaction.member.nickname)?(interaction.member.nickname):(interaction.member.displayName)
 
-
-        // Ensure the selected channel is a text-based channel
-        if (!channel.isTextBased()) {
-            await interaction.reply('Please select a valid text channel.');
+        var job_post_channel_raw = await getSetting(db, interaction.guild.id, "job_post_channel");
+        var management_updates_channel = await getSetting(db, interaction.guild.id, "management_updates_channel");
+        
+        if (!job_post_channel_raw) {
+            await interaction.reply({ content:'No job post channel set. Please set one with /settings in the category "Management".', ephemeral: true });
             return;
+        }
+        
+        if (!management_updates_channel) {
+            await interaction.reply({ content:'No management channel set. Please set one with /settings in the category "Management".', ephemeral: true });
+            return;
+        }
+        
+        job_post_channel_raw = job_post_channel_raw.replace("<#", "").replace(">", "")
+        management_updates_channel = management_updates_channel.replace("<#", "").replace(">", "")
+        
+        //fetch channel
+        let channel;
+        try {
+            channel = interaction.guild.channels.cache.get(job_post_channel_raw);
+        } catch (e) {
+            await interaction.reply({ content:'The channel you provided to post the job is not a valid channel. Please set a valid text channel with /settings in the category "Management".', ephemeral: true });
+            return;
+        }
+
+        try {
+            var channel2 = interaction.guild.channels.cache.get(management_updates_channel);
+        } catch (e) {
+            await interaction.reply({ content:'The channel you provided to post management message is not a valid channel. Please set a valid text channel with /settings in the category "Management".', ephemeral: true });
+            return;
+        }
+
+
+
+        try {
+        if (!channel.isTextBased() || !channel2.isTextBased()) {
+            await interaction.reply({ content:'The channel you provided is not a text channel. Please set a text channel with /settings in the category "Management".', ephemeral: true });
+                return;
+            }
+        } catch (e) {
+            await interaction.reply({ content:'The channel you provided isnt a text channel. Please set a text channel with /settings in the category "Management".', ephemeral: true });
         }
 
 
@@ -86,6 +117,7 @@ module.exports = {
             try {
                 const confirmation = await response.awaitMessageComponent({ time: 60_000 });
                 if (confirmation.customId === 'confirm') {
+                    console.log("Sendinen")
                     const message = await channel.send({ embeds: [exampleEmbed] });
                     await interaction.editReply({ content: 'Sending Message...', components: [], embeds: [], ephemeral: true });
                     await message.react('🧑‍✈️');
@@ -95,6 +127,8 @@ module.exports = {
                     await message.react('❔');
 
                     let uuid = uuidv4()
+
+
                     db.run(`INSERT INTO events (uuid, guildid, title, description, timestamp) VALUES (?, ?, ?, ?, ?)`, [uuid, interaction.guild.id, title, description, timestamp], function (err, row) {
                         if (err) {
                             console.error(err.message);
