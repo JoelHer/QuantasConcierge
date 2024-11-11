@@ -1,6 +1,6 @@
 function verifySettingsJson(obj) {
     return Object.values(obj).every(section => 
-        Object.values(section).every(item => item.friendlyName && item.dataType)
+        Object.values(section.settings).every(item => item.friendlyName && item.dataType)
     );
 }
 

@@ -73,36 +73,35 @@ async function parsesetting(_value, _datatype, guild) {
     }
 }
 
+async function renderPage(interaction, category, page=1) {
+    var _strb = "";
+    const row = new ActionRowBuilder()
 
-function getMainMenu(interaction) {
-    const mainMenuEmbed = new EmbedBuilder()
-        .setColor(0x00FFFF)
-        .setTitle(`Settings for "${interaction.guild.name}"`)
-        .setDescription("Please select one of the following categories using the dropdown menu below:\n```🔷General\n   🔹General Settings of the bot\n🔷Management\n   🔹Settings for people managing the server\n🔷Roles\n   🔹Role settings including settings for mentions```");
+    if (category == 'main' || category == 'back') {
+        const mainMenuEmbed = new EmbedBuilder()
+            .setColor(0x00FFFF)
+            .setTitle(`Settings for "${interaction.guild.name}"`)
+            .setDescription("Please select one of the following categories using the dropdown menu below:\n```🔷General\n   🔹General Settings of the bot\n\n🔷Management\n   🔹Settings for people managing the server\n\n🔷Roles\n   🔹Role settings including settings for mentions```");
     
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('general')
-            .setLabel('General')
-            .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-            .setCustomId('management')
-            .setLabel('Management')
-            .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-            .setCustomId('roles')
-            .setLabel('Roles')
-            .setStyle(ButtonStyle.Primary)
-    );
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId('general')
+                .setLabel('General')
+                .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .setCustomId('management')
+                .setLabel('Management')
+                .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .setCustomId('roles')
+                .setLabel('Roles')
+                .setStyle(ButtonStyle.Primary)
+        );
 
-    return { embeds: [mainMenuEmbed], components: [row] };
-}
+        return { embeds: [mainMenuEmbed], components: [row] };
+    }
 
-async function getGeneralSettingsMenu(interaction) {
-    var _strb = "";
-    const row = new ActionRowBuilder()
-
-    for (const [key, setting] of Object.entries(settingsTemplate.general)) {
+    for (const [key, setting] of Object.entries(settingsTemplate[category].settings)) {
         const value = await parsesetting(await getSetting(db, interaction.guild.id, key), setting.dataType, interaction.guild);
         _strb += `\`\`\`${setting.friendlyName}: ${(!value) ? "unset" : value}\n\`\`\``;
 
@@ -114,10 +113,10 @@ async function getGeneralSettingsMenu(interaction) {
         row.addComponents(button); // Now you can add components to row
     }
 
-    const generalSettingsEmbed = new EmbedBuilder()
+    const settingsEmbed = new EmbedBuilder()
         .setColor(0xFF00FF)
-        .setTitle('General Settings')
-        .setDescription('Edit General settings here.\n' + _strb);
+        .setTitle(`${settingsTemplate[category].title} Settings`)
+        .setDescription(`${settingsTemplate[category].description} \n` + _strb);
 
     row.addComponents(
         new ButtonBuilder()
@@ -126,82 +125,12 @@ async function getGeneralSettingsMenu(interaction) {
             .setStyle(ButtonStyle.Secondary)
     );
 
-    return { embeds: [generalSettingsEmbed], components: [row] };
-}
-
-
-
-async function getRoleSettingsMenu(interaction) {
-    var _strb = "";
-    const row = new ActionRowBuilder()
-
-    for (const [key, setting] of Object.entries(settingsTemplate.role)) {
-        const value = await parsesetting(await getSetting(db, interaction.guild.id, key), setting.dataType, interaction.guild);
-        _strb += `\`\`\`${setting.friendlyName}: ${(!value) ? "unset" : value}\n\`\`\``;
-
-        const button = new ButtonBuilder()
-            .setCustomId(`change=${key}`)
-            .setLabel(`Change ${setting.friendlyName}`)
-            .setStyle(ButtonStyle.Secondary);
-        
-        row.addComponents(button); // Now you can add components to row
-    }
-
-    const roleSettingsEmbed = new EmbedBuilder()
-        .setColor(0xFF00FF)
-        .setTitle('Role Settings')
-        .setDescription('Edit role settings and permissions here.\n' + _strb);
-
-    row.addComponents(
-        new ButtonBuilder()
-            .setCustomId('back')
-            .setLabel('Back')
-            .setStyle(ButtonStyle.Secondary)
-    );
-
-    return { embeds: [roleSettingsEmbed], components: [row] };
-}
-
-async function getManagementSettingsMenu(interaction) {
-    var _strb = "";
-    const row = new ActionRowBuilder()
-
-    for (const [key, setting] of Object.entries(settingsTemplate.management)) {
-        const value = await parsesetting(await getSetting(db, interaction.guild.id, key), setting.dataType, interaction.guild);
-        _strb += `\`\`\`${setting.friendlyName}: ${(!value) ? "unset" : value}\n\`\`\``;
-
-        const button = new ButtonBuilder()
-            .setCustomId(`change=${key}`)
-            .setLabel(`Change ${setting.friendlyName}`)
-            .setStyle(ButtonStyle.Secondary);
-        
-        row.addComponents(button); // Now you can add components to row
-    }
-
-    const managementSettingsEmbed = new EmbedBuilder()
-        .setColor(0xFF00FF)
-        .setTitle('Management Settings')
-        .setDescription('Edit Management settings here.\n' + _strb);
-
-    row.addComponents(
-        new ButtonBuilder()
-            .setCustomId('back')
-            .setLabel('Back')
-            .setStyle(ButtonStyle.Secondary)
-    );
-
-    return { embeds: [managementSettingsEmbed], components: [row] };
+    return { embeds: [settingsEmbed], components: [row] };
 }
 
 async function handleButtonInteraction(interaction) {
-    if (interaction.customId === 'general') {
-        await interaction.update(await getGeneralSettingsMenu(interaction));
-    } else if (interaction.customId === 'roles') {
-        await interaction.update(await getRoleSettingsMenu(interaction));
-    } else if (interaction.customId === 'management') {
-        await interaction.update(await getManagementSettingsMenu(interaction));
-    } else if (interaction.customId === 'back') {
-        await interaction.update(await getMainMenu(interaction));
+    if (interaction.customId === 'general' || interaction.customId === 'management' || interaction.customId === 'role' || interaction.customId === 'back') {
+        await interaction.update(await renderPage(interaction, interaction.customId));
     } else if (interaction.customId.startsWith('change=')) {
         const key = interaction.customId.split('=')[1];
         const currentValue = await getSetting(db, interaction.guild.id, key);
@@ -320,7 +249,7 @@ module.exports = {
             return interaction.editReply('An error occurred while trying to access the database.');
         }
 
-        await interaction.editReply(getMainMenu(interaction));
+        await interaction.editReply(await renderPage(interaction, 'main'));
 
         // Fetch the message and create the initial collector
         const message = await interaction.fetchReply();

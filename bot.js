@@ -76,7 +76,7 @@ db.run(`CREATE TABLE IF NOT EXISTS jobs (
 	FOREIGN KEY(guildid) REFERENCES guilds(id),
 	FOREIGN KEY(eventid) REFERENCES events(uuid)
 )`);
-  
+
 db.run(`CREATE TABLE IF NOT EXISTS settings (
     id INTEGER NOT NULL,
     key TEXT NOT NULL,
