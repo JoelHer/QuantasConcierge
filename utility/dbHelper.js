@@ -32,7 +32,7 @@ async function getSetting(db, guildid, key) {
     });
 }
 
-async function updateSetting(db, interaction, key, newValue) {
+async function updateSetting(db, interaction, key, newValue, ephemeral = false) {
     try {
         db.get('SELECT * FROM guilds WHERE guildid = ?', [interaction.guild.id], (err, row) => {
             if (err) {
@@ -44,18 +44,19 @@ async function updateSetting(db, interaction, key, newValue) {
                         console.error(err.message);
                     } else {
                         setSetting(db, row.id, key, newValue);
-                        interaction.followUp(`Successfully updated ${key} to "${newValue}".`);
+                        interaction.followUp({ content: `Successfully updated ${key} to "${newValue}".`, ephemeral: ephemeral });
                     }
                 });
             } else {
+                console.log(row.id, key, newValue);
                 setSetting(db, row.id, key, newValue);
-                interaction.followUp(`Successfully updated ${key} to "${newValue}".`);
+                interaction.followUp({ content: `Successfully updated ${key} to "${newValue}".`, ephemeral: ephemeral });
             }
         });
         
     } catch (error) {
         console.error('Error updating setting:', error);
-        await interaction.followUp('There was an error updating the setting.');
+        await interaction.followUp({ content: 'There was an error updating the setting.', ephemeral: ephemeral });
     }
 }
 

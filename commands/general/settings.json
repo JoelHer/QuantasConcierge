@@ -1,6 +1,7 @@
 {
     "settingsTemplate": {
         "management": {
+            "single": "Management",
             "title": "Management Settings",
             "description": "Settings for the management team",
             "settings": {
@@ -12,6 +13,7 @@
         },
         "general": {
             "title": "General Settings",
+            "single": "General",
             "description": "General settings for the bot",
             "settings":{
                 "testValue": {
@@ -22,6 +24,7 @@
         },
         "role": {
             "title": "Role Settings",
+            "single": "Role",
             "description": "Settings for roles",
             "settings": {
                 "job-mention": {

@@ -33,7 +33,6 @@ async function parseRole(inputString, guild) {
 }
 
 async function parseEmojirole(inputString, guild) {
-    console.log(inputString, guild);
     return "🧑‍✈️ -> Example-Role 1";
 }
 
@@ -73,64 +72,104 @@ async function parsesetting(_value, _datatype, guild) {
     }
 }
 
-async function renderPage(interaction, category, page=1) {
-    var _strb = "";
-    const row = new ActionRowBuilder()
+async function renderPage(interaction, category, page=0) {
+    let copiedSettings = structuredClone(settingsTemplate);
 
+    const settingsPerPage = 2;
+    
+    var _strb = "";
+    const row1 = new ActionRowBuilder()
+    const row2 = new ActionRowBuilder()
+    const row3 = new ActionRowBuilder()
+    const row4 = new ActionRowBuilder()
+    
+    const controlRow = new ActionRowBuilder()
+    
     if (category == 'main' || category == 'back') {
+        description = ""
+
+        
+        const row = new ActionRowBuilder()
+        
+        for (const [key, setting] of Object.entries(copiedSettings)) {
+            row.addComponents(
+                new ButtonBuilder()
+                .setCustomId(key)
+                .setLabel(setting.single)
+                .setStyle(ButtonStyle.Primary)
+            );
+            description += `\`\`\`🔷${setting.single}\n   🔹${setting.description}\`\`\``
+        }
+        
         const mainMenuEmbed = new EmbedBuilder()
             .setColor(0x00FFFF)
             .setTitle(`Settings for "${interaction.guild.name}"`)
-            .setDescription("Please select one of the following categories using the dropdown menu below:\n```🔷General\n   🔹General Settings of the bot\n\n🔷Management\n   🔹Settings for people managing the server\n\n🔷Roles\n   🔹Role settings including settings for mentions```");
-    
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('general')
-                .setLabel('General')
-                .setStyle(ButtonStyle.Primary),
-            new ButtonBuilder()
-                .setCustomId('management')
-                .setLabel('Management')
-                .setStyle(ButtonStyle.Primary),
-            new ButtonBuilder()
-                .setCustomId('roles')
-                .setLabel('Roles')
-                .setStyle(ButtonStyle.Primary)
-        );
-
-        return { embeds: [mainMenuEmbed], components: [row] };
+            .setDescription("Please select one of the following categories using the button menu below:\n"+description)
+        return { embeds: [mainMenuEmbed], components: [row], ephemeral: true };
     }
-
-    for (const [key, setting] of Object.entries(settingsTemplate[category].settings)) {
+    
+    settingCount = Object.keys(copiedSettings[category].settings).length
+    let pagesNeeded = ~~(settingCount/settingsPerPage)+((settingCount%settingsPerPage > 0)?1:0);
+    
+    if (settingCount > settingsPerPage) {
+        copiedSettings[category].settings = Object.fromEntries(Object.entries(copiedSettings[category].settings).slice(0+settingsPerPage*page, settingsPerPage*(page+1)));
+    }
+    
+    
+    for (const [key, setting] of Object.entries(copiedSettings[category].settings)) {
         const value = await parsesetting(await getSetting(db, interaction.guild.id, key), setting.dataType, interaction.guild);
         _strb += `\`\`\`${setting.friendlyName}: ${(!value) ? "unset" : value}\n\`\`\``;
-
+        
         const button = new ButtonBuilder()
             .setCustomId(`change=${key}`)
             .setLabel(`Change ${setting.friendlyName}`)
             .setStyle(ButtonStyle.Secondary);
-        
-        row.addComponents(button); // Now you can add components to row
+            
+        if (row1.components.length < 5) row1.addComponents(button);
+        else if (row2.components.length < 5) row2.addComponents(button);
+        else if (row3.components.length < 5) row3.addComponents(button);
+        else if (row4.components.length < 5) row4.addComponents(button);
     }
-
+    
     const settingsEmbed = new EmbedBuilder()
         .setColor(0xFF00FF)
-        .setTitle(`${settingsTemplate[category].title} Settings`)
-        .setDescription(`${settingsTemplate[category].description} \n` + _strb);
+        .setTitle(`${copiedSettings[category].title} Settings`)
+        .setDescription(`${copiedSettings[category].description} \n` + _strb)
+        .setFooter({ text: `Page ${page+1} of ${pagesNeeded}`});
 
-    row.addComponents(
+    controlRow.addComponents(
         new ButtonBuilder()
             .setCustomId('back')
             .setLabel('Back')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId(`page_back?page=${page-1}?category=${category}`)
+            .setEmoji('⬅️')
             .setStyle(ButtonStyle.Secondary)
+            .setDisabled((page > 0) ? false : true),
+        new ButtonBuilder()
+            .setCustomId(`page_next?page=${page+1}?category=${category}`)
+            .setEmoji('➡️')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled((page < pagesNeeded-1) ? false: true)
     );
 
-    return { embeds: [settingsEmbed], components: [row] };
+    let rowsToReturn = [controlRow];
+    if (row1.components.length > 0) rowsToReturn.push(row1);
+    if (row2.components.length > 0) rowsToReturn.push(row2);
+    if (row3.components.length > 0) rowsToReturn.push(row3);
+    if (row4.components.length > 0) rowsToReturn.push(row4);
+
+    return { embeds: [settingsEmbed], components: rowsToReturn, ephemeral: true };
 }
 
 async function handleButtonInteraction(interaction) {
     if (interaction.customId === 'general' || interaction.customId === 'management' || interaction.customId === 'role' || interaction.customId === 'back') {
         await interaction.update(await renderPage(interaction, interaction.customId));
+    } else if (interaction.customId.startsWith('page')) {
+        const page = parseInt(interaction.customId.split('?')[1].split('=')[1]);
+        const category = interaction.customId.split('?')[2].split('=')[1];
+        await interaction.update(await renderPage(interaction, category, page));
     } else if (interaction.customId.startsWith('change=')) {
         const key = interaction.customId.split('=')[1];
         const currentValue = await getSetting(db, interaction.guild.id, key);
@@ -138,33 +177,36 @@ async function handleButtonInteraction(interaction) {
         datatype = "unknown"
 
         for (const [ikey, sietting] of Object.entries(settingsTemplate)) {
-            for (const [jkey, jietting] of Object.entries(sietting)) {
+            for (const [jkey, jietting] of Object.entries(sietting.settings)) {
                 if (key == jkey) {
                     datatype = jietting.dataType;
                 }
             }
         }
 
-        await interaction.reply(`Current value for ${key} is "${currentValue}". Please provide a new value in form of the datatype ${datatype}.`);
+        var informDataMsg = await interaction.reply({ content: `Current value for ${key} is "${currentValue}". Please provide a new value in form of the datatype ${datatype}.`, ephemeral: true });
 
-        const filter = response => response.author.id === interaction.user.id;
+        const filter = response => response.author.id === interaction.user.id; // TODO: IMPLEMENT THIS
 
-        const collector = interaction.channel.createMessageCollector({ time: 60000 });
+        const collector = interaction.channel.createMessageCollector({ filter: filter, time: 60000 });
 
         collector.on('collect', async message => {
             parsedData = parseDatatypes(datatype, message.content)
+
             if (!parsedData) {
-                interaction.followUp(`Invalid input, please provide a valid ${datatype} value.`);
+                interaction.followUp({ content: `Invalid input, please provide a valid ${datatype} value.`, ephemeral: true });
                 return;
             } else {
-                await updateSetting(db, interaction, key, );
+                await updateSetting(db, interaction, key, parsedData, true);
                 collector.stop(); 
             }
+
+            message.delete();
         });
         
         collector.on('end', collected => {
             if (collected.size === 0) {
-                interaction.followUp('No response received, setting change cancelled.');
+                interaction.followUp({ content: 'No response received, setting change cancelled.', ephemeral: true });
             }
         });
     }
@@ -172,7 +214,6 @@ async function handleButtonInteraction(interaction) {
 
 function parseDatatypes (datatype, data) {
     var res;
-
     switch (datatype) {
         case 'bool':
             res = data.toLowerCase() === 'true' || data.toLowerCase() === 'false' ? data : null;
@@ -200,12 +241,12 @@ function parseDatatypes (datatype, data) {
             res = data;
             break;
     }
-    console.log("parsed data: ", res);
     return res; 
 }
 
 function createCollector(message, interaction) {
-    const collector = message.createMessageComponentCollector({ componentType: ComponentType.Button, time: 3_600_000 });
+    const collectorFilter = i => i.user.id === interaction.user.id;
+    const collector = message.createMessageComponentCollector({ componentType: ComponentType.Button, filter: collectorFilter, time: 3_600_000 });
 
     collector.on('collect', async i => {
         try {
@@ -226,27 +267,27 @@ module.exports = {
         .setName('settings')
         .setDescription('Opens the settings menu.'),
     async execute(interaction) {
-        await interaction.deferReply();
+        await interaction.deferReply({ephemeral: true});
 
         try {
             db.get('SELECT * FROM guilds WHERE guildid = ?', [interaction.guild.id], (err, row) => {
                 if (err) {
                     console.error(err.message);
-                    return interaction.editReply('There was an error accessing the database.');
+                    return interaction.editReply({ content: 'There was an error accessing the database.', ephemeral: true });
                 }
                 if (!row) {
                     db.run('INSERT INTO guilds(guildid) VALUES(?)', [interaction.guild.id], (err) => {
                         if (err) {
                             console.error(err.message);
-                            return interaction.editReply('There was an error accessing the database.');
+                            return interaction.editReply({ content: 'There was an error accessing the database.', ephemeral: true });
                         }
                     });
-                    return interaction.editReply('No settings found for this guild.');
+                    return interaction.editReply({ content: 'No settings found for this guild.', ephemeral: true });
                 }
             });
         } catch (error) {
             console.error('An error occurred while trying to access the database.', error);
-            return interaction.editReply('An error occurred while trying to access the database.');
+            return interaction.editReply({ content: 'An error occurred while trying to access the database.', ephemeral: true });
         }
 
         await interaction.editReply(await renderPage(interaction, 'main'));
