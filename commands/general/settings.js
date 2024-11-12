@@ -32,8 +32,22 @@ async function parseRole(inputString, guild) {
     return inputString;
 }
 
+async function parseEmojirole(inputString, guild) {
+    return "🧑‍✈️ -> Example-Role 1";
+}
+
+async function parseChannel(inputString, guild) {
+    const channelMatch = inputString.match(/<#(\d+)>/);
+    if (channelMatch) {
+        const channelId = channelMatch[1];
+        const channel = guild.channels.cache.get(channelId);
+        return channel ? "#"+channel.name : `Unknown Channel (${channelId})`;
+    }
+    return inputString;
+}
+
 async function parsesetting(_value, _datatype, guild) {
-    console.log(_value, _datatype);
+    if (!_value) return;
     if (_datatype === 'bool') {
         return (_value === 'true');
     } else if (_datatype === 'int') {
@@ -44,7 +58,12 @@ async function parsesetting(_value, _datatype, guild) {
         return _value;
     } else if (_datatype === 'role') {
         var _result = await parseRole(_value, guild)
-        console.log("res: ");
+        return _result;
+    } else if (_datatype === 'emojirole') {
+        var _result = await parseEmojirole(_value, guild)
+        return _result
+    } else if (_datatype === 'channel') {
+        var _result = await parseChannel(_value, guild)
         return _result;
     } else if (_datatype.startsWith('array[')) {
         const _arrtype = _datatype.substring(6, _datatype.length - 1);
@@ -53,125 +72,181 @@ async function parsesetting(_value, _datatype, guild) {
     }
 }
 
+async function renderPage(interaction, category, page=0) {
+    let copiedSettings = structuredClone(settingsTemplate);
 
-function getMainMenu(interaction) {
-    const mainMenuEmbed = new EmbedBuilder()
-        .setColor(0x00FFFF)
-        .setTitle(`Settings for "${interaction.guild.name}"`)
-        .setDescription("Please select one of the following categories using the dropdown menu below:\n```🔷General\n   🔹General Settings of the bot\n🔷Roles\n   🔹Role settings including settings for mentions```");
+    const settingsPerPage = 2;
     
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('general')
-            .setLabel('General')
-            .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-            .setCustomId('roles')
-            .setLabel('Roles')
-            .setStyle(ButtonStyle.Primary)
-    );
-
-    return { embeds: [mainMenuEmbed], components: [row] };
-}
-
-async function getGeneralSettingsMenu(interaction) {
     var _strb = "";
+    const row1 = new ActionRowBuilder()
+    const row2 = new ActionRowBuilder()
+    const row3 = new ActionRowBuilder()
+    const row4 = new ActionRowBuilder()
+    
+    const controlRow = new ActionRowBuilder()
+    
+    if (category == 'main' || category == 'back') {
+        description = ""
 
-    const row = new ActionRowBuilder(); // Initialize row here
-
-    for (const [key, setting] of Object.entries(settingsTemplate.general)) {
-        const value = parsesetting(await getSetting(db, interaction.guild.id, key));
-        _strb += `\`\`\`${setting.friendlyName}: ${(!value) ? "unset" : value}\n\`\`\``;
-
-        const button = new ButtonBuilder()
-            .setCustomId(`change_${key}`)
-            .setLabel(`Change ${setting.friendlyName}`)
-            .setStyle(ButtonStyle.Secondary);
         
-        row.addComponents(button); // Now you can add components to row
+        const row = new ActionRowBuilder()
+        
+        for (const [key, setting] of Object.entries(copiedSettings)) {
+            row.addComponents(
+                new ButtonBuilder()
+                .setCustomId(key)
+                .setLabel(setting.single)
+                .setStyle(ButtonStyle.Primary)
+            );
+            description += `\`\`\`🔷${setting.single}\n   🔹${setting.description}\`\`\``
+        }
+        
+        const mainMenuEmbed = new EmbedBuilder()
+            .setColor(0x00FFFF)
+            .setTitle(`Settings for "${interaction.guild.name}"`)
+            .setDescription("Please select one of the following categories using the button menu below:\n"+description)
+        return { embeds: [mainMenuEmbed], components: [row], ephemeral: true };
     }
-
-    const generalSettingsEmbed = new EmbedBuilder()
-        .setColor(0x00FF00)
-        .setTitle('General Settings')
-        .setDescription('Edit general bot settings here.\n' + _strb);
-
-    const backButtonRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('back')
-            .setLabel('Back')
-            .setStyle(ButtonStyle.Secondary)
-    );
-
-    return { embeds: [generalSettingsEmbed], components: [row, backButtonRow] }; // Return both rows
-}
-
-
-
-async function getRoleSettingsMenu(interaction) {
-    var _strb = "";
-    const row = new ActionRowBuilder()
-
-    for (const [key, setting] of Object.entries(settingsTemplate.role)) {
+    
+    settingCount = Object.keys(copiedSettings[category].settings).length
+    let pagesNeeded = ~~(settingCount/settingsPerPage)+((settingCount%settingsPerPage > 0)?1:0);
+    
+    if (settingCount > settingsPerPage) {
+        copiedSettings[category].settings = Object.fromEntries(Object.entries(copiedSettings[category].settings).slice(0+settingsPerPage*page, settingsPerPage*(page+1)));
+    }
+    
+    
+    for (const [key, setting] of Object.entries(copiedSettings[category].settings)) {
         const value = await parsesetting(await getSetting(db, interaction.guild.id, key), setting.dataType, interaction.guild);
         _strb += `\`\`\`${setting.friendlyName}: ${(!value) ? "unset" : value}\n\`\`\``;
-
+        
         const button = new ButtonBuilder()
-            .setCustomId(`change_${key}`)
+            .setCustomId(`change=${key}`)
             .setLabel(`Change ${setting.friendlyName}`)
             .setStyle(ButtonStyle.Secondary);
-        
-        row.addComponents(button); // Now you can add components to row
+            
+        if (row1.components.length < 5) row1.addComponents(button);
+        else if (row2.components.length < 5) row2.addComponents(button);
+        else if (row3.components.length < 5) row3.addComponents(button);
+        else if (row4.components.length < 5) row4.addComponents(button);
     }
-
-    const roleSettingsEmbed = new EmbedBuilder()
+    
+    const settingsEmbed = new EmbedBuilder()
         .setColor(0xFF00FF)
-        .setTitle('Role Settings')
-        .setDescription('Edit role settings and permissions here.\n' + _strb);
+        .setTitle(`${copiedSettings[category].title} Settings`)
+        .setDescription(`${copiedSettings[category].description} \n` + _strb)
+        .setFooter({ text: `Page ${page+1} of ${pagesNeeded}`});
 
-    row.addComponents(
+    controlRow.addComponents(
         new ButtonBuilder()
             .setCustomId('back')
             .setLabel('Back')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId(`page_back?page=${page-1}?category=${category}`)
+            .setEmoji('⬅️')
             .setStyle(ButtonStyle.Secondary)
+            .setDisabled((page > 0) ? false : true),
+        new ButtonBuilder()
+            .setCustomId(`page_next?page=${page+1}?category=${category}`)
+            .setEmoji('➡️')
+            .setStyle(ButtonStyle.Secondary)
+            .setDisabled((page < pagesNeeded-1) ? false: true)
     );
 
-    return { embeds: [roleSettingsEmbed], components: [row] };
+    let rowsToReturn = [controlRow];
+    if (row1.components.length > 0) rowsToReturn.push(row1);
+    if (row2.components.length > 0) rowsToReturn.push(row2);
+    if (row3.components.length > 0) rowsToReturn.push(row3);
+    if (row4.components.length > 0) rowsToReturn.push(row4);
+
+    return { embeds: [settingsEmbed], components: rowsToReturn, ephemeral: true };
 }
 
 async function handleButtonInteraction(interaction) {
-    if (interaction.customId === 'general') {
-        await interaction.update(await getGeneralSettingsMenu(interaction));
-    } else if (interaction.customId === 'roles') {
-        await interaction.update(await getRoleSettingsMenu(interaction));
-    } else if (interaction.customId === 'back') {
-        await interaction.update(await getMainMenu(interaction));
-    } else if (interaction.customId.startsWith('change_')) {
-        const key = interaction.customId.split('_')[1];
+    if (interaction.customId === 'general' || interaction.customId === 'management' || interaction.customId === 'role' || interaction.customId === 'back') {
+        await interaction.update(await renderPage(interaction, interaction.customId));
+    } else if (interaction.customId.startsWith('page')) {
+        const page = parseInt(interaction.customId.split('?')[1].split('=')[1]);
+        const category = interaction.customId.split('?')[2].split('=')[1];
+        await interaction.update(await renderPage(interaction, category, page));
+    } else if (interaction.customId.startsWith('change=')) {
+        const key = interaction.customId.split('=')[1];
         const currentValue = await getSetting(db, interaction.guild.id, key);
 
-        await interaction.reply(`Current value for ${key} is "${currentValue}". Please provide a new value.`);
+        datatype = "unknown"
 
-        const filter = response => response.author.id === interaction.user.id;
+        for (const [ikey, sietting] of Object.entries(settingsTemplate)) {
+            for (const [jkey, jietting] of Object.entries(sietting.settings)) {
+                if (key == jkey) {
+                    datatype = jietting.dataType;
+                }
+            }
+        }
 
-        const collector = interaction.channel.createMessageCollector({ time: 15000 });
+        var informDataMsg = await interaction.reply({ content: `Current value for ${key} is "${currentValue}". Please provide a new value in form of the datatype ${datatype}.`, ephemeral: true });
+
+        const filter = response => response.author.id === interaction.user.id; 
+
+        const collector = interaction.channel.createMessageCollector({ filter: filter, time: 60000 });
 
         collector.on('collect', async message => {
-            await updateSetting(db, interaction, key, message.content);
-            collector.stop(); // Stop the collector after getting the response
-        });
+            parsedData = parseDatatypes(datatype, message.content)
 
+            if (!parsedData) {
+                interaction.followUp({ content: `Invalid input, please provide a valid ${datatype} value.`, ephemeral: true });
+                return;
+            } else {
+                await updateSetting(db, interaction, key, parsedData, true);
+                collector.stop(); 
+            }
+
+            message.delete();
+        });
+        
         collector.on('end', collected => {
             if (collected.size === 0) {
-                interaction.followUp('No response received, setting change cancelled.');
+                interaction.followUp({ content: 'No response received, setting change cancelled.', ephemeral: true });
             }
         });
     }
+}
 
+function parseDatatypes (datatype, data) {
+    var res;
+    switch (datatype) {
+        case 'bool':
+            res = data.toLowerCase() === 'true' || data.toLowerCase() === 'false' ? data : null;
+            break;
+        case 'int':
+            res = parseInt(data);
+            break;
+        case 'float':
+            res = parseFloat(data);
+            break;
+        case 'string':
+            res = data;
+            break;
+        case 'role':
+            res = data;
+            break;
+        case 'emojirole':
+            res = data;
+            break;
+        case 'channel':
+            res = data;
+            break;
+
+        default:
+            res = data;
+            break;
+    }
+    return res; 
 }
 
 function createCollector(message, interaction) {
-    const collector = message.createMessageComponentCollector({ componentType: ComponentType.Button, time: 3_600_000 });
+    const collectorFilter = i => i.user.id === interaction.user.id;
+    const collector = message.createMessageComponentCollector({ componentType: ComponentType.Button, filter: collectorFilter, time: 3_600_000 });
 
     collector.on('collect', async i => {
         try {
@@ -192,34 +267,33 @@ module.exports = {
         .setName('settings')
         .setDescription('Opens the settings menu.'),
     async execute(interaction) {
-        await interaction.deferReply();
+        await interaction.deferReply({ephemeral: true});
 
         try {
             db.get('SELECT * FROM guilds WHERE guildid = ?', [interaction.guild.id], (err, row) => {
                 if (err) {
                     console.error(err.message);
-                    return interaction.editReply('There was an error accessing the database.');
+                    return interaction.editReply({ content: 'There was an error accessing the database.', ephemeral: true });
                 }
                 if (!row) {
                     db.run('INSERT INTO guilds(guildid) VALUES(?)', [interaction.guild.id], (err) => {
                         if (err) {
                             console.error(err.message);
-                            return interaction.editReply('There was an error accessing the database.');
+                            return interaction.editReply({ content: 'There was an error accessing the database.', ephemeral: true });
                         }
                     });
-                    return interaction.editReply('No settings found for this guild.');
+                    return interaction.editReply({ content: 'No settings found for this guild.', ephemeral: true });
                 }
             });
         } catch (error) {
             console.error('An error occurred while trying to access the database.', error);
-            return interaction.editReply('An error occurred while trying to access the database.');
+            return interaction.editReply({ content: 'An error occurred while trying to access the database.', ephemeral: true });
         }
 
-        await interaction.editReply(getMainMenu(interaction));
+        await interaction.editReply(await renderPage(interaction, 'main'));
 
         // Fetch the message and create the initial collector
         const message = await interaction.fetchReply();
         createCollector(message, interaction);
-        
     },
 };

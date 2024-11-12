@@ -1,19 +1,65 @@
 {
     "settingsTemplate": {
+        "management": {
+            "single": "Management",
+            "title": "Management Settings",
+            "description": "Settings for the management team",
+            "settings": {
+                "management_updates_channel": {
+                    "friendlyName": "Management Updates Channel",
+                    "dataType": "channel"
+                },
+                "job_post_channel": {
+                    "friendlyName": "Job Post Channel",
+                    "dataType": "channel"
+                }
+            }
+        },
         "general": {
-            "testValue": {
-                "friendlyName": "Test Value",
-                "dataType": "string"
-            },
-            "numberer": {
-                "friendlyName": "Cool ass number",
-                "dataType": "int"
+            "title": "General Settings",
+            "single": "General",
+            "description": "General settings for the bot",
+            "settings":{
+                "testValue": {
+                    "friendlyName": "Test Value",
+                    "dataType": "string"
+                }
             }
         },
         "role": {
-            "job-mention": {
-                "friendlyName": "Roles to mention in job post",
-                "dataType": "array[role]"
+            "title": "Role Settings",
+            "single": "Role",
+            "description": "Settings for roles",
+            "settings": {
+                "job-mention": {
+                    "friendlyName": "Roles to mention in job post",
+                    "dataType": "array[role]"
+                },
+                "unsureEmojirole": {
+                    "friendlyName": "Unsure Emoji Role",
+                    "dataType": "emojirole",
+                    "default": "❔=1304783244948017192"
+                },
+                "pilotEmojirole": {
+                    "friendlyName": "Pilot Emoji Role",
+                    "dataType": "emojirole",
+                    "default": "🧑🏻‍✈️=1296029870794477639"
+                },
+                "escortEmojirole": {
+                    "friendlyName": "Escort Emoji Role",
+                    "dataType": "emojirole",
+                    "default": "🪠=1296029937450356746"
+                },
+                "securityEmojirole": {
+                    "friendlyName": "Security Emoji Role",
+                    "dataType": "emojirole",
+                    "default": "🔫=1296029968102326293"
+                },
+                "bartenderEmojirole": {
+                    "friendlyName": "Bartender Emoji Role",
+                    "dataType": "emojirole",
+                    "default": "🍾=1304783164094287942"
+                }
             }
         }
     }
