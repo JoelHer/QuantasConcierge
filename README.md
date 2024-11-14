@@ -102,4 +102,4 @@ module.exports = {
 The name and execute are required. the once option is only for this example, because the ClientReady event is only executed once.
 
 ### Utility Directory
-The utility directory stores general functions used in commands, in the main file or some other place. Generally it **should not** import anything from the main file, or other files like the ```client``` or ```db``` property, to prevent circular imports
+The utility directory stores general functions that can be imported and used in commands, in the main file or some other place. Generally it **should not** import anything from the main file, or other files like the ```client``` or ```db``` property, to prevent circular imports
