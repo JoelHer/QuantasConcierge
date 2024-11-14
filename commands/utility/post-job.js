@@ -115,9 +115,9 @@ module.exports = {
         //button logic
         try {
             try {
-                const confirmation = await response.awaitMessageComponent({ time: 60_000 });
+                const filter = i => i.user.id === interaction.user.id
+                const confirmation = await response.awaitMessageComponent({ filter: filter, time: 60_000 });
                 if (confirmation.customId === 'confirm') {
-                    console.log("Sendinen")
                     const message = await channel.send({ embeds: [exampleEmbed] });
                     await interaction.editReply({ content: 'Sending Message...', components: [], embeds: [], ephemeral: true });
                     await message.react('🧑‍✈️');
