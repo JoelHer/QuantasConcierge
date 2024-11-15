@@ -75,7 +75,7 @@ async function parsesetting(_value, _datatype, guild) {
 async function renderPage(interaction, category, page=0) {
     let copiedSettings = structuredClone(settingsTemplate);
 
-    const settingsPerPage = 2;
+    const settingsPerPage = 5;
     
     var _strb = "";
     const row1 = new ActionRowBuilder()
