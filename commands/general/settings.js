@@ -33,7 +33,9 @@ async function parseRole(inputString, guild) {
 }
 
 async function parseEmojirole(inputString, guild) {
-    return "🧑‍✈️ -> Example-Role 1";
+    console.log(inputString)
+    return inputString.split('=')[0]
+    //return "🧑‍✈️ -> Example-Role 1";
 }
 
 async function parseChannel(inputString, guild) {
@@ -277,6 +279,7 @@ module.exports = {
                 }
                 if (!row) {
                     db.run('INSERT INTO guilds(guildid) VALUES(?)', [interaction.guild.id], (err) => {
+                        // TODO: Insert default settings
                         if (err) {
                             console.error(err.message);
                             return interaction.editReply({ content: 'There was an error accessing the database.', ephemeral: true });

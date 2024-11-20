@@ -40,6 +40,7 @@ async function updateSetting(db, interaction, key, newValue, ephemeral = false) 
             }
             if (!row) {
                 db.run('INSERT INTO guilds(guildid) VALUES(?)', [interaction.guild.id], (err, _row) => {
+                    // TODO: Insert default settings
                     if (err) {
                         console.error(err.message);
                     } else {

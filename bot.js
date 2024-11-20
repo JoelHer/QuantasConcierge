@@ -87,28 +87,37 @@ db.run(`CREATE TABLE IF NOT EXISTS settings (
 
 // Code for inserting default settings into the database, if they are unset
 db.all("SELECT * FROM guilds", function(err, guilds) {
-	db.all("SELECT * FROM settings", function(err, rows) {
-		if (err) {
-			console.error(err.message);
-			return;
-		} 
-	
-		for (const [key1, val1] of Object.entries(settingsTemplate)) {
-			for (const [key2, val2] of Object.entries(val1)) {
-				if (val2.default) { // checks if there is a default value
-					guilds.forEach(guild => {
-						rows.forEach(dbsetting => {
-							if (guild.guildid == dbsetting.id && dbsetting.key == key2) {
-							} else {
-								setSetting(db, guild.id, key2, val2.default);
-							}
-						});
-					});
-				}
-			}
-		}
-	});
-})
+    if (err) {
+        console.error(err.message);
+        return;
+    }
+
+    db.all("SELECT * FROM settings", function(err, rows) {
+        if (err) {
+            console.error(err.message);
+            return;
+        }
+
+        // Iterate through settingsTemplate to check for missing settings and insert defaults
+        for (const [key1, val1] of Object.entries(settingsTemplate)) {
+            for (const [key2, val2] of Object.entries(val1.settings)) {
+                if (val2.default) { // checks if there is a default value
+                    guilds.forEach(guild => {
+                        console.log(`Checking for setting ${key2} in the database for guild ${guild.guildid}...`);
+
+                        // Check if the setting already exists for the guild
+                        const existingSetting = rows.find(dbsetting => dbsetting.id === guild.id && dbsetting.key === key2);
+
+                        if (!existingSetting) {
+                            console.log(`Setting ${key2} not found for guild ${guild.guildid}. Inserting default value...`);
+                            setSetting(db, guild.id, key2, val2.default);
+                        }
+                    });
+                }
+            }
+        }
+    });
+});
 
 
 
