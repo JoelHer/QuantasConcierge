@@ -64,13 +64,17 @@ async function renderEvents(interaction, events, page = 0) {
             );
         });
 
+        
+
         const embed = new EmbedBuilder()
             .setColor(0xFFFFFF)
             .setDescription(`## Select upcoming Event:\n${descr}`)
             .setFooter({ text: `Page ${page + 1} of ${pagesNeeded}` });
 
-        const controlRow2 = new ActionRowBuilder().addComponents(select);
-
+        const controlRow2 = new ActionRowBuilder();
+        if (select.options.length != 0)
+            controlRow2.addComponents(select);
+            
         controlRow.addComponents(
             new ButtonBuilder()
                 .setCustomId(`page_back?page=${page - 1}`)
@@ -84,7 +88,11 @@ async function renderEvents(interaction, events, page = 0) {
                 .setDisabled(page >= pagesNeeded - 1)
         );
 
-        return { embeds: [embed], components: [controlRow, controlRow2], ephemeral: true };
+        const returnComponents = [controlRow]
+        if (controlRow2.components.length != 0)
+            returnComponents.push(controlRow2)
+
+        return { embeds: [embed], components: returnComponents, ephemeral: true };
     }
 }
 
