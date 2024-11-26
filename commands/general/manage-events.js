@@ -182,7 +182,7 @@ async function handleButtonInteraction(interaction) {
                                     } else if (i.customId === 'confirmpublish') {
                                         confirmCollector.stop();
                                         await interaction.editReply({ content: 'Event published successfully.', components: [], embeds: [], ephemeral: true });
-                                        const publicannounce = await selectedChannel.send({ embeds: [publishMessage.embeds[0]] }); // TODO: add signups here AND DB entry for announcements
+                                        const publicannounce = await selectedChannel.send(await renderPublish(db, interaction, rows[0], i.content)); // TODO: add signups here AND DB entry for announcements
     
                                         
                                         await dbQuery(`INSERT INTO announcements (type, eventuuid, guildid, messageid, channelid) VALUES (?,?,?,?,?);`, ["PUBLIC_EVENT",event_uuid,interaction.guild.id,publicannounce.id,selectedChannel.id]);
