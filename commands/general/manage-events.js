@@ -1,8 +1,9 @@
 const { SlashCommandBuilder, ChannelType, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ComponentType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, embedLength, ChannelSelectMenuBuilder } = require('discord.js');
 const { db } = require('../../bot');
+const { getSetting, setSetting, getIdByGuildId } = require('../../utility/dbHelper');
 
 // Wrap database queries in Promises
-function fetchEvents(query, params) {
+function dbQuery(query, params) {
     return new Promise((resolve, reject) => {
         db.all(query, params, (err, rows) => {
             if (err) reject(err);
@@ -17,7 +18,7 @@ async function renderEvents(interaction, events, page = 0) {
 
     if (interaction.customId && interaction.customId.startsWith('select_event')) {
         const event_uuid = interaction.values[0].split('=')[1];
-        const rows = await fetchEvents(`SELECT * FROM events WHERE uuid = ?;`, [event_uuid]);
+        const rows = await dbQuery(`SELECT * FROM events WHERE uuid = ?;`, [event_uuid]);
 
         if (!rows || rows.length === 0) {
             console.error('No event found for UUID:', event_uuid);
@@ -185,7 +186,7 @@ async function renderPublish(interaction, event, location) {
                 value: limitedSeats
             }
         )
-        .setImage('https://i.ibb.co/Brv9LgW/Squadron-42-Star-Citizen-Screenshot-2024-10-07-21-14-09-03.png')
+        .setImage(event.imageurl)
         .setFooter({ text: 'Credits to BuildandPlay on Discord for the screenshot.' });
 
     controlRow.addComponents(
@@ -194,7 +195,7 @@ async function renderPublish(interaction, event, location) {
             .setLabel('Cancel')
             .setStyle(ButtonStyle.Secondary),
         new ButtonBuilder()
-            .setCustomId(`confirmpublishevent?uuid=${event.uuid}`)
+            .setCustomId(`confirmpublishevent?uuid=${event.uuid}?location=${location}`)
             .setLabel('Publish')
             .setStyle(ButtonStyle.Success),
     );
@@ -208,17 +209,17 @@ async function handleButtonInteraction(interaction) {
 
     try {
         if (interaction.customId === 'back') {
-            const rows = await fetchEvents(`SELECT * FROM events WHERE timestamp > ? ORDER BY timestamp ASC;`, [timestamp]);
+            const rows = await dbQuery(`SELECT * FROM events WHERE timestamp > ? ORDER BY timestamp ASC;`, [timestamp]);
             await interaction.update(await renderEvents(interaction, rows));
         } else if (interaction.customId.startsWith('select_event')) {
             await interaction.update(await renderEvents(interaction, undefined));
         } else if (interaction.customId.startsWith('page')) {
             const page = parseInt(interaction.customId.split('?')[1].split('=')[1], 10);
-            const rows = await fetchEvents(`SELECT * FROM events WHERE timestamp > ? ORDER BY timestamp ASC;`, [timestamp]);
+            const rows = await dbQuery(`SELECT * FROM events WHERE timestamp > ? ORDER BY timestamp ASC;`, [timestamp]);
             await interaction.update(await renderEvents(interaction, rows, page));
         } else if (interaction.customId.startsWith("publishevent")) {
             const event_uuid = interaction.customId.split('?')[1].split('=')[1]
-            const rows = await fetchEvents(`SELECT * FROM events WHERE uuid = ?;`, [event_uuid]);
+            const rows = await dbQuery(`SELECT * FROM events WHERE uuid = ?;`, [event_uuid]);
             const intreply = await interaction.update({ content: "Where is the departure location? (e.g. Everus Harbor, Area 18, etc.)", components: [], embeds: [], fetchReply: true });
             const filter = m => m.author.id === interaction.user.id;
             const collector = await intreply.channel.createMessageCollector({ filter: filter, time: 3_600_000 });
@@ -232,36 +233,17 @@ async function handleButtonInteraction(interaction) {
                         collector.stop();
                         await interaction.editReply({ content: 'Event publishing cancelled.', components: [], embeds: [], ephemeral: true });
                     } else if (i.customId.startsWith('confirmpublishevent')) {
-                        collector.stop();
-                        const channelSelectMenu = new ChannelSelectMenuBuilder()
-                            .setCustomId('select_channel')
-                            .setPlaceholder('Select a channel') 
-                            .setMinValues(1)
-                            .setMaxValues(1) 
-                            .addChannelTypes(ChannelType.GuildText); 
-
-                        const actionRow = new ActionRowBuilder().addComponents(channelSelectMenu);
-                        channelselect = await interaction.editReply({content: "Where should the event be published? Please select a channel using the dropdown menu below. Discord is sometimes broken with the selection, so you might have to select a different channel first, then select the proper channel.", ephemeral: true, embeds: [], components: [actionRow]});
-                        
-                        const filter = (menuInteraction) => {
-                            return menuInteraction.customId === 'select_channel' && menuInteraction.user.id === interaction.user.id;
-                        };
-
-                        const menuCollector = interaction.channel.createMessageComponentCollector({
-                            time: 60000,
-                        });
-
-                        menuCollector.on('collect', async (menuInteraction) => {
-                            menuCollector.stop(); 
-                            const selectedChannelId = menuInteraction.values[0]; 
+                        const event_uuid = i.customId.split('?')[1].split('=')[1];
+                        const location = i.customId.split('?')[2].split('=')[1];
+                        dbQuery(`UPDATE events SET location = ? WHERE uuid = ?;`, [location, event_uuid]);
+                        const publish = async (selectedChannelId) => {
                             const selectedChannel = interaction.guild.channels.cache.get(selectedChannelId);
-                            console.log(selectedChannel);
-
+                            
                             if (selectedChannel) {
                                 const controlRowConfirmSelect = new ActionRowBuilder();
                                 controlRowConfirmSelect.addComponents(
                                     new ButtonBuilder()
-                                        .setCustomId(`cancelpublish`)
+                                    .setCustomId(`cancelpublish`)
                                         .setLabel('Cancel')
                                         .setStyle(ButtonStyle.Secondary),
                                     new ButtonBuilder()
@@ -269,18 +251,18 @@ async function handleButtonInteraction(interaction) {
                                         .setLabel('Confirm')
                                         .setStyle(ButtonStyle.Success),
                                 );
-
+                                
                                 await interaction.editReply({
                                     content: `Are you sure you want to publish the event in ${selectedChannel.name}?`,
                                     ephemeral: true,
                                     components: [],
                                     embeds: [],
                                 });
-
+    
                                 const confirmPublish = await interaction.editReply({ components: [controlRowConfirmSelect], ephemeral: true });
                                 const filter = i => i.user.id === interaction.user.id;
                                 const confirmCollector = confirmPublish.channel.createMessageComponentCollector({ filter: filter, time: 3_600_000 });
-
+    
                                 confirmCollector.on('collect', async i => {
                                     if (i.customId === 'cancelpublish') {
                                         confirmCollector.stop();
@@ -288,10 +270,13 @@ async function handleButtonInteraction(interaction) {
                                     } else if (i.customId === 'confirmpublish') {
                                         confirmCollector.stop();
                                         await interaction.editReply({ content: 'Event published successfully.', components: [], embeds: [], ephemeral: true });
-                                        await selectedChannel.send({ embeds: [publishMessage.embeds[0]] }); // TODO: add signups here AND DB entry for announcements
+                                        const publicannounce = await selectedChannel.send({ embeds: [publishMessage.embeds[0]] }); // TODO: add signups here AND DB entry for announcements
+    
+                                        
+                                        await dbQuery(`INSERT INTO announcements (type, eventuuid, guildid, messageid, channelid) VALUES (?,?,?,?,?);`, ["PUBLIC_EVENT",event_uuid,interaction.guild.id,publicannounce.id,selectedChannel.id]);
                                     }
                                 })
-                    
+                                
                             } else {
                                 await interaction.editReply({
                                     content: "An error occurred. Could not find the selected channel.",
@@ -300,17 +285,60 @@ async function handleButtonInteraction(interaction) {
                                     embeds: [],
                                 });
                             }
-                    
-                        });
-                    
-                        menuCollector.on('end', (collected, reason) => {
-                            if (reason === 'time') {
-                                interaction.followUp({
-                                    content: "You took too long to respond. Please try again.",
-                                    ephemeral: true,
+                        }
+
+                        collector.stop();
+
+                        getSetting(db, interaction.guild.id, 'public_event_announcements_channel').then(async eventchannel => {
+                            if (eventchannel) {
+                                console.log(eventchannel);
+                                // remove the <> and # from the channel id#
+                                const channelId = eventchannel.slice(2, -1);
+                                await publish(channelId);
+                            } else {
+                                const channelSelectMenu = new ChannelSelectMenuBuilder()
+                                .setCustomId('select_channel')
+                                .setPlaceholder('Select a channel') 
+                                .setMinValues(1)
+                                .setMaxValues(1) 
+                                    .addChannelTypes(ChannelType.GuildText); 
+        
+                                const actionRow = new ActionRowBuilder().addComponents(channelSelectMenu);
+                                channelselect = await interaction.editReply({content: "Where should the event be published? Please select a channel using the dropdown menu below. Discord is sometimes broken with the selection, so you might have to select a different channel first, then select the proper channel.\n**This preference will be saved under settings/management**", ephemeral: true, embeds: [], components: [actionRow]});
+                                
+                                // use getIdByGuildId to get id
+
+                                getIdByGuildId(db, interaction.guild.id).then(async guildid => {
+                                    setSetting(db, guildid, 'public_event_announcements_channel', "<#"+channelselect.channelId+">");
+                                })
+                                
+
+                                const filter = (menuInteraction) => {
+                                    return menuInteraction.customId === 'select_channel' && menuInteraction.user.id === interaction.user.id;
+                                };
+                                
+                                const menuCollector = interaction.channel.createMessageComponentCollector({
+                                    time: 60000,
+                                });
+                                
+                                menuCollector.on('collect', async (menuInteraction) => {
+                                    menuCollector.stop(); 
+                                    const selectedChannelId = menuInteraction.values[0];
+                                    await publish(selectedChannelId)
+                                });
+                            
+                                menuCollector.on('end', (collected, reason) => {
+                                    if (reason === 'time') {
+                                        interaction.followUp({
+                                            content: "You took too long to respond. Please try again.",
+                                            ephemeral: true,
+                                        });
+                                    }
                                 });
                             }
-                        });
+                        })
+
+
                     }
                 });
             });
@@ -347,7 +375,7 @@ module.exports = {
 
         try {
             const timestamp = Math.floor(Date.now() / 1000);
-            const rows = await fetchEvents(`SELECT * FROM events WHERE timestamp > ? ORDER BY timestamp ASC;`, [timestamp]);
+            const rows = await dbQuery(`SELECT * FROM events WHERE timestamp > ? ORDER BY timestamp ASC;`, [timestamp]);
 
             await interaction.editReply(await renderEvents(interaction, rows));
 

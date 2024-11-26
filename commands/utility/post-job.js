@@ -24,6 +24,10 @@ module.exports = {
         .addStringOption(option =>
             option.setName('color')
                 .setDescription('Sets the color of the embed in hex. Default is 0x0099FF')
+                .setRequired(false))
+        .addStringOption(option =>
+            option.setName('imageurl')
+                .setDescription('Sets the image of the embed')
                 .setRequired(false)),
     
     async execute(interaction) {
@@ -32,6 +36,7 @@ module.exports = {
         const title = interaction.options.getString('title');
         const description = interaction.options.getString('description');
         const color = interaction.options.getString('color');
+        const imageurl = interaction.options.getString('imageurl');
         const timestamp = interaction.options.getNumber('timestamp');
 
         // If the user has a nickname, use that instead of their username TODO: Fix it to user the proper displayed name.
@@ -80,6 +85,25 @@ module.exports = {
             await interaction.reply({ content:'The channel you provided isnt a text channel. Please set a text channel with /settings in the category "Management".', ephemeral: true });
         }
 
+        //get imageurl
+        var iurl = "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png"
+        db.all(`SELECT * FROM guilds WHERE guildid = ?`, [interaction.guild.id], async (err, rows) => {
+            if (err) {
+                console.error(err.message);
+                return;
+            }
+            if (rows.length > 0) {
+                if (rows[0].imageurl) {
+                    iurl = rows[0].imageurl
+                }
+            }
+        })
+
+        if (imageurl) {
+            console.log(`imageurl is ${imageurl}`)
+            iurl = imageurl
+        }
+
 
         const exampleEmbed = new EmbedBuilder()
             .setColor((color === null) ? 0x0099FF : color)
@@ -89,9 +113,9 @@ module.exports = {
             .addFields(
                 { name: 'Able to/interested to participate?', value: 'React below with the roles you could fulfil (🧑🏻‍✈️ for pilot, 🪠 for escort, 🔫 for onboard security, 🍾 for bartender and react with both your role and with ❔ emoji for maybe). Only react with roles that you are trained for (roles that you also have in the discord)!\n'+((_roles)? _roles:" ")},
             )
-            .setImage('https://media.discordapp.net/attachments/1070062643055964241/1288236074929225760/marcel-van-vuuren-aaron-halo-web-01.png?ex=670e2816&is=670cd696&hm=01a7d7435f53bb567f0b6b268c9c3c07cfe1d28acfc732ca67f74b59d82a78ec&=&format=webp&quality=lossless&width=1100&height=424')
             .setTimestamp()
-            .setFooter({ text: 'Posted by '+name, iconURL: interaction.user.avatarURL() });
+            .setFooter({ text: 'Posted by '+name, iconURL: interaction.user.avatarURL()})
+            .setImage(iurl)
 
         
         // Create the buttons
@@ -128,8 +152,8 @@ module.exports = {
 
                     let uuid = uuidv4()
 
-
-                    db.run(`INSERT INTO events (uuid, guildid, title, description, timestamp) VALUES (?, ?, ?, ?, ?)`, [uuid, interaction.guild.id, title, description, timestamp], function (err, row) {
+                    console.log(`iurl is ${iurl}`)
+                    db.run(`INSERT INTO events (uuid, guildid, title, description, timestamp, imageurl) VALUES (?, ?, ?, ?, ?, ?)`, [uuid, interaction.guild.id, title, description, timestamp, iurl], function (err, row) {
                         if (err) {
                             console.error(err.message);
                         } else {

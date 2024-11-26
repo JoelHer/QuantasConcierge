@@ -12,6 +12,10 @@
                 "job_post_channel": {
                     "friendlyName": "Job Post Channel",
                     "dataType": "channel"
+                },
+                "public_event_announcements_channel": {
+                    "friendlyName": "Public Event Announcements Channel",
+                    "dataType": "channel"
                 }
             }
         },

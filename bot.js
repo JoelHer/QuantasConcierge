@@ -52,6 +52,7 @@ db.run(`CREATE TABLE IF NOT EXISTS events (
 	title TEXT,
 	description TEXT,
 	imageurl TEXT,
+	location TEXT,
 	FOREIGN KEY(guildid) REFERENCES guilds(id)
 )`);
 
