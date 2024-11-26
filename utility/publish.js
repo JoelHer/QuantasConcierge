@@ -1,7 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
 
-
-
 const startsWithVowel = str => /^[aeiou]/i.test(str);
 
 module.exports = {
