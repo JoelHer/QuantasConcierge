@@ -288,7 +288,7 @@ async function handleButtonInteraction(interaction) {
                                     } else if (i.customId === 'confirmpublish') {
                                         confirmCollector.stop();
                                         await interaction.editReply({ content: 'Event published successfully.', components: [], embeds: [], ephemeral: true });
-                                        await selectedChannel.send({ embeds: [publishMessage.embeds[0]] }); // TODO: add signups here
+                                        await selectedChannel.send({ embeds: [publishMessage.embeds[0]] }); // TODO: add signups here AND DB entry for announcements
                                     }
                                 })
                     
