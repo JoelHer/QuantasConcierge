@@ -24,10 +24,6 @@ module.exports = {
         .addStringOption(option =>
             option.setName('color')
                 .setDescription('Sets the color of the embed in hex. Default is 0x0099FF')
-                .setRequired(false))
-        .addNumberOption(option =>
-            option.setName('playerlimit')
-                .setDescription('Sets the player limit for the event. Default is 25')
                 .setRequired(false)),
     
     async execute(interaction) {
@@ -36,7 +32,6 @@ module.exports = {
         const title = interaction.options.getString('title');
         const description = interaction.options.getString('description');
         const color = interaction.options.getString('color');
-        const playerlimit = interaction.options.getNumber('playerlimit');
         const timestamp = interaction.options.getNumber('timestamp');
 
         // If the user has a nickname, use that instead of their username TODO: Fix it to user the proper displayed name.
@@ -89,7 +84,7 @@ module.exports = {
         const exampleEmbed = new EmbedBuilder()
             .setColor((color === null) ? 0x0099FF : color)
             .setTitle(title)
-            .setAuthor({ name: 'Quantas Starlines', iconURL: 'https://cdn.discordapp.com/avatars/1295043243641274378/5bf928c18697f98d5131022c3d3b9454?size=256' })
+            .setAuthor({ name: 'Quantas Starlines', iconURL: 'https://i.ibb.co/Xxb3FC4/Quantas-Logo-V2-Discord.png' })
             .setDescription(description)
             .addFields(
                 { name: 'Able to/interested to participate?', value: 'React below with the roles you could fulfil (🧑🏻‍✈️ for pilot, 🪠 for escort, 🔫 for onboard security, 🍾 for bartender and react with both your role and with ❔ emoji for maybe). Only react with roles that you are trained for (roles that you also have in the discord)!\n'+((_roles)? _roles:" ")},
@@ -134,7 +129,7 @@ module.exports = {
                     let uuid = uuidv4()
 
 
-                    db.run(`INSERT INTO events (uuid, guildid, title, description, timestamp, playerLimit) VALUES (?, ?, ?, ?, ?, ?)`, [uuid, interaction.guild.id, title, description, timestamp, (playerlimit === null) ? 25 : playerlimit], function (err, row) {
+                    db.run(`INSERT INTO events (uuid, guildid, title, description, timestamp) VALUES (?, ?, ?, ?, ?)`, [uuid, interaction.guild.id, title, description, timestamp], function (err, row) {
                         if (err) {
                             console.error(err.message);
                         } else {

@@ -52,7 +52,6 @@ db.run(`CREATE TABLE IF NOT EXISTS events (
 	title TEXT,
 	description TEXT,
 	imageurl TEXT,
-	playerLimit INTEGER,
 	FOREIGN KEY(guildid) REFERENCES guilds(id)
 )`);
 
@@ -85,6 +84,37 @@ db.run(`CREATE TABLE IF NOT EXISTS settings (
     FOREIGN KEY(id) REFERENCES guilds(id),
     UNIQUE(id, key)
 )`);
+
+db.run(`CREATE TABLE IF NOT EXISTS ticketroles (
+    ticketroleid INTEGER PRIMARY KEY AUTOINCREMENT,
+	guildid TEXT NOT NULL,
+    rolename TEXT NOT NULL,
+    FOREIGN KEY(guildid) REFERENCES guilds(id)
+)`);
+	
+db.run(`CREATE TABLE IF NOT EXISTS eventguestrole (
+	eventid TEXT NOT NULL,
+	roleid TEXT NOT NULL,
+	price INTEGER NOT NULL,
+	seats INTEGER NOT NULL,
+	FOREIGN KEY(eventid) REFERENCES events(uuid),
+	FOREIGN KEY(roleid) REFERENCES ticketroles(ticketroleid)
+)`);
+
+//only insert once
+db.all(`SELECT * FROM ticketroles`, function(err, rows) {
+	if (err) {
+		console.error(err.message);
+		return;
+	} 
+
+	if (rows.length == 0) {
+		db.run(`INSERT INTO ticketroles (guildid, rolename) VALUES ('836254833874567220', 'normal')`);
+		db.run(`INSERT INTO ticketroles (guildid, rolename) VALUES ('836254833874567220', 'Admiral')`);
+		db.run(`INSERT INTO ticketroles (guildid, rolename) VALUES ('836254833874567220', 'Legatus')`);
+	}
+});
+
 
 // Code for inserting default settings into the database, if they are unset
 db.all("SELECT * FROM guilds", function(err, guilds) {
