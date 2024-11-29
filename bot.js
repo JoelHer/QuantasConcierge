@@ -7,6 +7,7 @@ const { verifySettingsJson, setSetting } = require('./utility/dbHelper');
 const { handleMessage } = require('./utility/jobpost-reaction');
 const { settingsTemplate } = require('./commands/general/settings.json');
 const { updateManagementMessage } = require('./utility/jobpost-reaction');
+const { addPublishMessageComponentsCollector } = require('./utility/publish');
 
 if (!verifySettingsJson(settingsTemplate)){
 	console.log("Invalid settings.json file.");
@@ -54,8 +55,25 @@ db.run(`CREATE TABLE IF NOT EXISTS events (
 	imageurl TEXT,
 	imageauthor TEXT,
 	location TEXT,
+	length TEXT,
 	FOREIGN KEY(guildid) REFERENCES guilds(id)
 )`);
+
+db.run(`
+	CREATE TABLE IF NOT EXISTS "guestSignups" (
+		"serveId"	INTEGER NOT NULL UNIQUE,
+		"memberId"	TEXT NOT NULL,
+		"eventId"	TEXT,
+		"jobId"	TEXT,
+		"guildId"	TEXT,
+		"ticketRoleId"	INTEGER,
+		PRIMARY KEY("serveId" AUTOINCREMENT),
+		FOREIGN KEY("eventId") REFERENCES "events"("uuid"),
+		FOREIGN KEY("guildId") REFERENCES "guilds"("guildid"),
+		FOREIGN KEY("jobId") REFERENCES "jobs"("jobid"),
+		FOREIGN KEY("ticketRoleId") REFERENCES "ticketroles"("ticketroleid")
+	);
+`)
 
 db.run(`CREATE TABLE IF NOT EXISTS announcements (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -221,7 +239,13 @@ client.login(token).then(async () => {
                 const channelId = row.channelid;
                 const channel = await client.channels.fetch(channelId);
                 
-                await handleMessage(client, db, messageId, channel, row.uuid, row.guildid); //jopost-reaction.js
+				if (row.type == 'EMPLOYEE_JOBPOST') 
+                	await handleMessage(client, db, messageId, channel, row.uuid, row.guildid); //jopost-reaction.js
+				else if (row.type == 'PUBLIC_EVENT') {
+					//get message by ids
+					const message = await channel.messages.fetch(messageId);
+					await addPublishMessageComponentsCollector(message, db)
+				}
             }
         } catch (err) {
             console.error(err);

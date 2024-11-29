@@ -1,27 +1,27 @@
-const { EmbedBuilder } = require('discord.js');
-
+const { EmbedBuilder, ActionRowBuilder, ButtonComponent, ButtonBuilder } = require('discord.js');
+const { updateManagementMessage } = require('./jobpost-reaction');
 const startsWithVowel = str => /^[aeiou]/i.test(str);
 
 module.exports = {
-    async renderPublish(db, interaction, event, location) {
-        const getRolePrices = function(db, eventId) {
-            const sql = `
-                SELECT tr.rolename, COALESCE(egr.seats, 0) AS seats, COALESCE(egr.price, 0) AS price
-                FROM ticketroles tr LEFT JOIN eventguestrole egr ON tr.ticketroleid = egr.roleid AND egr.eventid = ?
-            `;
-        
-            return new Promise((resolve, reject) => {
-                db.all(sql, [eventId], (err, rows) => {
-                    if (err) {
-                        reject(err); // Reject the promise on error
-                    } else {
-                        resolve(rows); // Resolve the promise with the result
-                    }
-                });
-            });
-        }
+    getRolePrices(db, eventId) {
+        const sql = `
+            SELECT tr.rolename, COALESCE(egr.seats, 0) AS seats, COALESCE(egr.price, 0) AS price
+            FROM ticketroles tr LEFT JOIN eventguestrole egr ON tr.ticketroleid = egr.roleid AND egr.eventid = ?
+        `;
     
-        let rolePrices = await getRolePrices(db, event.uuid);
+        return new Promise((resolve, reject) => {
+            db.all(sql, [eventId], (err, rows) => {
+                if (err) {
+                    reject(err); // Reject the promise on error
+                } else {
+                    resolve(rows); // Resolve the promise with the result
+                }
+            });
+        });
+    },
+    async renderPublish(db, interaction, event, location, preview=false) {
+    
+        let rolePrices = await module.exports.getRolePrices(db, event.uuid);
     
         let pricingString = "";
     
@@ -77,7 +77,7 @@ module.exports = {
                 },
                 {
                     name: "How to pay",
-                    value: "Once you've signed up using the post, open the payment thread below."
+                    value: "Once you've signed up using the post, you can open the payment thread."
                 },
                 {
                     name: "   ",
@@ -87,8 +87,153 @@ module.exports = {
             .setImage(event.imageurl)
             .setFooter({ text: 'Credits to BuildandPlay on Discord for the screenshot.' });
     
-        
+        if (!preview) {
+            const row = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('signup?uuid='+event.uuid)
+                        .setLabel('Signup / Opt out')
+                        .setStyle('Primary'),
+                );
     
-        return { embeds: [embed], components: [], ephemeral: true, fetchReply: true };
+            return { embeds: [embed], components: [row], ephemeral: true, fetchReply: true };
+        } else {
+            return { embeds: [embed], components: [], ephemeral: true, fetchReply: true };
+        }
+    },
+
+    async addPublishMessageComponentsCollector(message, db) {
+        //console.log("Adding collector for message", message.id);
+        const collector = message.createMessageComponentCollector({ time: 999999999 });
+        collector.on('collect', async i => {
+            collector.resetTimer(); // this may break the collector? nut sure yet.
+            if (i.customId.startsWith('signup')) {
+                const eventid = i.customId.split('?')[1].split('=')[1];
+                db.all(`SELECT * FROM guestSignups WHERE memberId = ? AND eventId = ? AND guildId = ?;`,[i.user.id, eventid, i.guild.id], (err, rows) => {
+                    if (err) {
+                        console.error(err.message);
+                        return;
+                    } if (rows.length > 0) {
+                        const row = new ActionRowBuilder()
+                            .addComponents(
+                                new ButtonBuilder()
+                                    .setCustomId('optout?uuid='+eventid)
+                                    .setLabel('Opt out')
+                                    .setStyle('Primary')
+                                    .setDisabled(false),
+                            );
+                        i.reply({ content: 'You have already signed up for this event.', components: [row], ephemeral: true, fetchReply: true }).then((msg) => {
+                            //collector 
+                            const collector = msg.createMessageComponentCollector({ time: 60000 });
+                            collector.on('collect', async i => {
+                                if (i.customId.startsWith('optout')) {
+                                    const eventid = i.customId.split('?')[1].split('=')[1];
+                                    db.run(`DELETE FROM guestSignups WHERE memberId = ? AND eventId = ? AND guildId = ?;`,[i.user.id, eventid, i.guild.id], function(err) {
+                                        if (err) {
+                                            console.error(err.message);
+                                        } else {
+                                            i.reply({ content: 'You have opted out of the event.', ephemeral: true });
+                                            updateManagementMessage(db, i.client, eventid);
+                                        }
+                                    });
+                                }
+                            });
+                        });
+                        return;
+                    } else {
+                        if (err) {
+                            console.error(err.message);
+                        } else {
+                        /**
+                            This query retrieves the available seats for a specific event, 
+                            grouped by ticket role (or roleid), while also including the 
+                            ticket's name (rolename). The query accounts for the seats that 
+                            have already been booked by users (based on the guestSignups 
+                            table) and excludes tickets that have a price lower than 0.
+                        */
+
+                            let q = `
+                                -- First part: If records exist in eventguestrole for the event, get available seats.
+                                    SELECT 
+                                        egr.roleid,
+                                        tr.rolename,
+                                        egr.seats - COALESCE(COUNT(gs.ticketRoleId), 0) AS availableSeats
+                                    FROM 
+                                        eventguestrole egr
+                                    LEFT JOIN 
+                                        guestSignups gs
+                                    ON egr.eventid = gs.eventId AND egr.roleid = gs.ticketRoleId
+                                    LEFT JOIN 
+                                        ticketroles tr
+                                    ON egr.roleid = tr.ticketroleid
+                                    WHERE 
+                                        egr.eventid = ?  -- Specify event ID
+                                    GROUP BY 
+                                        egr.eventid, egr.roleid, tr.rolename
+
+                                    UNION ALL
+
+                                    -- Second part: If no records exist in eventguestrole, return fallback ticket with 25 seats, accounting for signups.
+                                    SELECT 
+                                        1 AS roleid,                           -- Default roleid for "normal" ticket
+                                        'normal' AS rolename,                  -- Default rolename for "normal" ticket (lowercase)
+                                        25 - COALESCE(COUNT(gs.ticketRoleId), 0) AS availableSeats  -- Subtract the booked seats from 25
+                                    FROM 
+                                        guestSignups gs
+                                    WHERE 
+                                        gs.eventId = ?    -- Filter by event ID for signups
+                                        AND gs.ticketRoleId = 1                                    -- Ensure it's the "normal" ticket role (roleid = 1)
+                                    HAVING 
+                                        COUNT(gs.ticketRoleId) < 25  -- Only return this row if there are available seats (less than 25 bookings)
+
+                                    -- Ensure fallback only returns if no roles exist for the event in eventguestrole
+                                    AND NOT EXISTS (
+                                        SELECT 1
+                                        FROM eventguestrole
+                                        WHERE eventid = ?
+                                    );
+
+                            `
+                            db.all(q, [eventid,eventid,eventid], (err, rows) => {
+                                const row = new ActionRowBuilder()	
+                                for (x in rows) {
+                                    row.addComponents(
+                                        new ButtonBuilder()
+                                            .setCustomId('selectticket?uuid='+eventid+'?tickettype='+rows[x].roleid)
+                                            .setLabel(((rows[x].rolename == "normal")?"Normal":rows[x].rolename)+' ticket')
+                                            .setStyle('Primary')
+                                            .setDisabled((rows[x].availableSeats == 0)?true:false),
+                                    );
+                                }
+                                const embed = new EmbedBuilder()
+                                    .setTitle("Select a ticket")
+                                    .setDescription("Please choose a ticket. The payment process will start after selection if the ticket is not free")
+                                    .setColor(0x062d79)
+
+                                i.reply({ components: [row], embeds:[embed], ephemeral: true, fetchReply: true }).then((msg) => {
+                                    const cllecter = msg.createMessageComponentCollector({ time: 60000 });
+                                    cllecter.on('collect', async i => {
+                                        cllecter.stop();
+                                        console.log(i.customId);
+                                        if (i.customId.startsWith('selectticket')) {
+                                            const eventid = i.customId.split('?')[1].split('=')[1];
+                                            const tickettype = i.customId.split('?')[2].split('=')[1];
+                                            db.run(`INSERT INTO guestSignups (memberId, eventId, guildId, ticketRoleId) VALUES (?, ?, ?, ?);`,[i.user.id, eventid, i.guild.id, tickettype], function(err) {
+                                                if (err) {
+                                                    console.error(err.message);
+                                                } else {
+                                                    i.reply({ content: 'You have signed up for the event.', ephemeral: true });
+                                                    //updateManagementMessage(db, i.client, eventid);
+                                                }
+                                            });
+                                        }
+                                    })
+                                });
+                            });
+                        }
+                    }
+                })
+            }
+        });
     }
 }
