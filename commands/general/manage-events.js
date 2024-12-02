@@ -1,7 +1,8 @@
 const { SlashCommandBuilder, ChannelType, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ComponentType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, embedLength, ChannelSelectMenuBuilder } = require('discord.js');
 const { db } = require('../../bot');
 const { getSetting, setSetting, getIdByGuildId } = require('../../utility/dbHelper');
-const { renderPublish, addPublishMessageComponentsCollector } = require('../../utility/publish');
+const { renderPublish, addPublishMessageComponentsCollector, updatePublicAnnoucementMessage } = require('../../utility/publish');
+const { updateManagementMessage } = require('../../utility/jobpost-reaction');
 
 // this is the query that will be used to get the available seats and the pricing for the event
 let tickedAndSeatsQuery = `
@@ -515,7 +516,7 @@ async function handleButtonInteraction(interaction, originalMessage) {
                         i.delete();
                         dbQuery(`UPDATE events SET description = ? WHERE uuid = ?;`, [i.content, uuid]);
                         await interaction.editReply(await renderSelectedEvent(uuid));
-                        // TODO: update the event public announcement
+                        updatePublicAnnoucementMessage(db, interaction.client, uuid);
                     });
                 } else if (selectedprop === 'length') {
                     i.update({ content: 'Please enter the new length for the event in hours.', components: [], embeds: [], ephemeral: true });
@@ -525,6 +526,7 @@ async function handleButtonInteraction(interaction, originalMessage) {
                         collector.stop();
                         i.delete();
                         dbQuery(`UPDATE events SET length = ? WHERE uuid = ?;`, [i.content, uuid]);
+                        updatePublicAnnoucementMessage(db, interaction.client, uuid);
                         await interaction.editReply(await renderSelectedEvent(uuid));
                     });
                 } else if (selectedprop === 'timestamp') {
@@ -535,6 +537,7 @@ async function handleButtonInteraction(interaction, originalMessage) {
                         collector.stop();
                         i.delete();
                         dbQuery(`UPDATE events SET timestamp = ? WHERE uuid = ?;`, [i.content, uuid]);
+                        updatePublicAnnoucementMessage(db, interaction.client, uuid);
                         await interaction.editReply(await renderSelectedEvent(uuid));
                     });
                 } else if (selectedprop === 'location') {
@@ -545,6 +548,7 @@ async function handleButtonInteraction(interaction, originalMessage) {
                         collector.stop();
                         i.delete();
                         dbQuery(`UPDATE events SET location = ? WHERE uuid = ?;`, [i.content, uuid]);
+                        updatePublicAnnoucementMessage(db, interaction.client, uuid);
                         await interaction.editReply(await renderSelectedEvent(uuid));
                     });
                 } else if (selectedprop === 'ticket_prices') {
@@ -618,18 +622,85 @@ async function handleButtonInteraction(interaction, originalMessage) {
                             msgcollector.stop();
                             dbQuery(`UPDATE eventguestrole SET price = ? WHERE eventid = ? AND roleid = ?;`, [msg.content, uuid, selectedticket]);
                             msg.delete();
+                            updatePublicAnnoucementMessage(db, interaction.client, uuid);
                             await interaction.editReply(await renderSelectedEvent(uuid));
                         });
                     });
                 } else if (selectedprop === 'ticket_seats') {
-                    i.update({ content: 'Please enter the new number of seats for the event.', components: [], embeds: [], ephemeral: true });
-                    const filter = m => m.author.id === interaction.user.id;
-                    const collector = i.channel.createMessageCollector({ filter, time: 3_600_000 });
+                    const event_uuid = uuid;
+                    ticketingSeatData = await dbQuery(tickedAndSeatsQuery, [event_uuid, event_uuid, event_uuid]);
+                    maximumSeatsData = await dbQuery(maximumSeats, [event_uuid, event_uuid]);
+                    ticketingPricesData = await dbQuery(ticketingPrices, [event_uuid, event_uuid]);
+
+                    console.log(ticketingPricesData);
+
+                    //merges the two datasets
+                    const mergedData = ticketingSeatData.map(item => {
+                        const maxSeatsItem = maximumSeatsData.find(maxItem => maxItem.roleid === item.roleid);
+                        const priceItem = ticketingPricesData.find(priceItem => priceItem.roleid === item.roleid);
+                        
+                        return {
+                            ...item,
+                            maxSeats: maxSeatsItem ? maxSeatsItem.maxSeats : null, // Add maxSeats if found, otherwise null
+                            price: priceItem ? priceItem.price : null, // Add price if found, otherwise null
+                            rolename: priceItem ? priceItem.rolename : 'normal', // Default to 'normal' if no priceItem found
+                        };
+                    });
+                    
+
+                    ticketingSeatString = '';
+                    ticketingPricesString = '';
+                    totalSeats = 0;
+                    totalAvailableSeats = 0;
+                    mergedData.forEach(ticket => {
+                        totalSeats += ticket.maxSeats;
+                        totalAvailableSeats += ticket.availableSeats;
+                        ticketingSeatString += `- **${(ticket.rolename == "normal")? "Normal":ticket.rolename}**: ${ticket.maxSeats} (${ticket.maxSeats-ticket.availableSeats} reserved)\n`;
+                        ticketingPricesString += `- **${(ticket.rolename == "normal")? "Normal":ticket.rolename}**: ${(ticket.price > 0)? ticket.price+" aUEC":"Unpurchasable"}\n`;
+                    });
+                    
+                    var embed = new EmbedBuilder()
+                        .setColor(0xFFFFFF)
+                        .setDescription(`## Ticket Seating\nAvailable seats for the event.\n${ticketingSeatString}`);
+                
+                    const controlRow = new ActionRowBuilder();
+                    //dropdown menu to select ticket to edit the price
+                    const select = new StringSelectMenuBuilder()
+                        .setCustomId('select_ticket')
+                        .setPlaceholder('Select a ticket to edit')
+
+                    mergedData.forEach(tck => {
+                        console.log(tck);
+                        select.addOptions( 
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel((tck.rolename == "normal")? "Normal":tck.rolename)
+                                .setDescription(`Edit the seats amount for the ${tck.rolename} ticket`)
+                                .setValue('ticket='+tck.roleid)
+                        )
+                    })
+
+                    controlRow.addComponents(select);
+                    
+                    i.update({ components: [controlRow], embeds: [embed], ephemeral: true });
+                    const collectorFilter = i => i.user.id === interaction.user.id;
+                    const collector = i.channel.createMessageComponentCollector({ filter: collectorFilter, time: 3_600_000 });
                     collector.on('collect', async i => {
                         collector.stop();
-                        i.delete();
-                        dbQuery(`UPDATE events SET ticket_seats = ? WHERE uuid = ?;`, [i.content, uuid]);
-                        await interaction.editReply(await renderSelectedEvent(uuid));
+                        const selectedticket = i.values[0].split('=')[1];
+                        const ticket = mergedData.find(tck => tck.roleid == selectedticket);
+                        var _embed = new EmbedBuilder()
+                            .setColor(0xFFFFFF)
+                            .setDescription(`## Ticket Seats\nEdit the amount of seats for the ${ticket.rolename} ticket.\nCurrent Seats: ${ticket.maxSeats}\nWrite a message with the new amount of seats **as an integer**.`);
+                        i.update({ components: [], embeds: [_embed], ephemeral: true });
+                        const msgfilter = m => m.author.id === interaction.user.id;
+                        const msgcollector = i.channel.createMessageCollector({ filter: msgfilter, time: 3_600_000 });
+                        msgcollector.on('collect', async msg => {
+                            msgcollector.stop();
+                            dbQuery(`UPDATE eventguestrole SET seats = ? WHERE eventid = ? AND roleid = ?;`, [msg.content, uuid, selectedticket]);
+                            msg.delete();
+                            updatePublicAnnoucementMessage(db, interaction.client, uuid);
+                            await interaction.editReply(await renderSelectedEvent(uuid));
+                        });
                     });
                 }
             })

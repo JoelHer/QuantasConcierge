@@ -67,6 +67,7 @@ db.run(`
 		"jobId"	TEXT,
 		"guildId"	TEXT,
 		"ticketRoleId"	INTEGER,
+		"status"	TEXT,
 		PRIMARY KEY("serveId" AUTOINCREMENT),
 		FOREIGN KEY("eventId") REFERENCES "events"("uuid"),
 		FOREIGN KEY("guildId") REFERENCES "guilds"("guildid"),
