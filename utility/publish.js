@@ -223,7 +223,7 @@ module.exports = {
                                                     console.error(err.message);
                                                 } else {
                                                     i.reply({ content: 'You have signed up for the event.', ephemeral: true });
-                                                    //updateManagementMessage(db, i.client, eventid);
+                                                    updateManagementMessage(db, i.client, eventid);
                                                 }
                                             });
                                         }

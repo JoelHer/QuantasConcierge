@@ -158,10 +158,6 @@ module.exports = {
                                 .addFields(
                                     { name: 'Description:', value: row.description, inline: true },
                                     { name: '\u200B', value: '\u200B' },
-                                    { name: 'When?', value: '<t:'+row.timestamp+':R>', inline: true },
-                                    { name: 'Job-Post Message', value: 'https://discord.com/channels/server/channel/msgid', inline: true },
-                                    { name: 'Announcement Message', value: 'Not sent yet. Use /pusblish', inline: true },
-                                    { name: '\u200B', value: '\u200B' },
                                 )
                                 .addFields(
                                     { name: 'Employees', value: employees, inline: true },
