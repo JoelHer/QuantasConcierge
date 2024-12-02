@@ -31,7 +31,7 @@ module.exports = {
         if (rolePrices.length == 0) 
             pricingString = "Entry to this event is free for all participants.";
         if (rolePrices.length == 1)
-            pricingString = `A ticket for this tour ${(rolePrices[0].price == 0)? "is free.":"costs "+role.price+" (" +role.price/1000+"K) aUEC"}\n`;
+            pricingString = `A ticket for this tour ${(rolePrices[0].price == 0)? "is free.":"costs "+rolePrices[0].price+" (" +rolePrices[0].price/1000+"K) aUEC"}\n`;
         if (rolePrices.length > 1) {
             rolePrices.forEach(role =>{
                 pricingString += `A${(startsWithVowel(role.rolename)? "n ":" ")+role.rolename} ticket for this tour ${(role.price == 0)? "is free.":"costs "+role.price+" (" +role.price/1000+"K) aUEC"}\n`;

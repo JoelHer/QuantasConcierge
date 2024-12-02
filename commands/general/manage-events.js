@@ -2,7 +2,103 @@ const { SlashCommandBuilder, ChannelType, StringSelectMenuBuilder, StringSelectM
 const { db } = require('../../bot');
 const { getSetting, setSetting, getIdByGuildId } = require('../../utility/dbHelper');
 const { renderPublish, addPublishMessageComponentsCollector } = require('../../utility/publish');
-// Wrap database queries in Promises
+
+// this is the query that will be used to get the available seats and the pricing for the event
+let tickedAndSeatsQuery = `
+    -- First part: If records exist in eventguestrole for the event, get available seats.
+        SELECT 
+            egr.roleid,
+            tr.rolename,
+            egr.seats - COALESCE(COUNT(gs.ticketRoleId), 0) AS availableSeats
+        FROM 
+            eventguestrole egr
+        LEFT JOIN 
+            guestSignups gs
+        ON egr.eventid = gs.eventId AND egr.roleid = gs.ticketRoleId
+        LEFT JOIN 
+            ticketroles tr
+        ON egr.roleid = tr.ticketroleid
+        WHERE 
+            egr.eventid = ?  -- Specify event ID
+        GROUP BY 
+            egr.eventid, egr.roleid, tr.rolename
+
+        UNION ALL
+
+        -- Second part: If no records exist in eventguestrole, return fallback ticket with 25 seats, accounting for signups.
+        SELECT 
+            1 AS roleid,                           -- Default roleid for "normal" ticket
+            'normal' AS rolename,                  -- Default rolename for "normal" ticket (lowercase)
+            25 - COALESCE(COUNT(gs.ticketRoleId), 0) AS availableSeats  -- Subtract the booked seats from 25
+        FROM 
+            guestSignups gs
+        WHERE 
+            gs.eventId = ?    -- Filter by event ID for signups
+            AND gs.ticketRoleId = 1                                    -- Ensure it's the "normal" ticket role (roleid = 1)
+        HAVING 
+            COUNT(gs.ticketRoleId) < 25  -- Only return this row if there are available seats (less than 25 bookings)
+
+        -- Ensure fallback only returns if no roles exist for the event in eventguestrole
+        AND NOT EXISTS (
+            SELECT 1
+            FROM eventguestrole
+            WHERE eventid = ?
+        );
+
+`
+let maximumSeats = `
+    -- Fetch maximum seats, roleid, and rolename if records exist in eventguestrole for the event
+    SELECT 
+        egr.roleid,
+        tr.rolename,
+        MAX(egr.seats) AS maxSeats
+    FROM 
+        eventguestrole egr
+    LEFT JOIN 
+        ticketroles tr ON egr.roleid = tr.ticketroleid
+    WHERE 
+        egr.eventid = ?
+    GROUP BY 
+        egr.roleid, tr.rolename
+
+    UNION ALL
+    SELECT 
+        1 AS roleid, 
+        'normal' AS rolename,              
+        25 AS maxSeats                        
+    WHERE 
+        NOT EXISTS (
+            SELECT 1
+            FROM eventguestrole
+            WHERE eventid = ?
+        );
+
+`
+let ticketingPrices = `
+    SELECT 
+        COALESCE(egr.roleid, 1) AS roleid, 
+        COALESCE(tr.rolename, 'normal') AS rolename, 
+        COALESCE(egr.price, 0) AS price 
+    FROM 
+        eventguestrole egr
+    LEFT JOIN 
+        ticketroles tr ON egr.roleid = tr.ticketroleid
+    WHERE 
+        egr.eventid = ?
+    UNION ALL
+    SELECT 
+        1 AS roleid, 
+        'normal' AS rolename, 
+        0 AS price
+    WHERE 
+        NOT EXISTS (
+            SELECT 1
+            FROM eventguestrole
+            WHERE eventid = ?
+        );
+
+`
+
 function dbQuery(query, params) {
     return new Promise((resolve, reject) => {
         db.all(query, params, (err, rows) => {
@@ -12,68 +108,141 @@ function dbQuery(query, params) {
     });
 }
 
+async function renderSelectedEvent(event_uuid) {
+    const rows = await dbQuery(`SELECT * FROM events WHERE uuid = ?;`, [event_uuid]);
+
+    var controlRow = new ActionRowBuilder();
+
+    if (!rows || rows.length === 0) {
+        console.error('No event found for UUID:', event_uuid);
+        return;
+    }
+
+    ticketingSeatData = await dbQuery(tickedAndSeatsQuery, [event_uuid, event_uuid, event_uuid]);
+    maximumSeatsData = await dbQuery(maximumSeats, [event_uuid, event_uuid]);
+    ticketingPricesData = await dbQuery(ticketingPrices, [event_uuid, event_uuid]);
+
+    console.log(ticketingPricesData);
+
+    //merges the two datasets
+    const mergedData = ticketingSeatData.map(item => {
+        const maxSeatsItem = maximumSeatsData.find(maxItem => maxItem.roleid === item.roleid);
+        const priceItem = ticketingPricesData.find(priceItem => priceItem.roleid === item.roleid);
+        
+        return {
+            ...item,
+            maxSeats: maxSeatsItem ? maxSeatsItem.maxSeats : null, // Add maxSeats if found, otherwise null
+            price: priceItem ? priceItem.price : null, // Add price if found, otherwise null
+            rolename: priceItem ? priceItem.rolename : 'normal', // Default to 'normal' if no priceItem found
+        };
+    });
+    
+
+    ticketingSeatString = '';
+    ticketingPricesString = '';
+    totalSeats = 0;
+    totalAvailableSeats = 0;
+    mergedData.forEach(ticket => {
+        totalSeats += ticket.maxSeats;
+        totalAvailableSeats += ticket.availableSeats;
+        ticketingSeatString += `- **${(ticket.rolename == "normal")? "Normal":ticket.rolename}**: ${ticket.maxSeats} (${ticket.maxSeats-ticket.availableSeats} reserved)\n`;
+        ticketingPricesString += `- **${(ticket.rolename == "normal")? "Normal":ticket.rolename}**: ${(ticket.price > 0)? ticket.price+" aUEC":"Unpurchasable"}\n`;
+    });
+    publicAnnouncements = await dbQuery(`SELECT * FROM announcements WHERE eventuuid = ? AND type = "PUBLIC_EVENT";`, [event_uuid]);
+    employeeAnnouncements = await dbQuery(`SELECT * FROM announcements WHERE eventuuid = ? AND type = "EMPLOYEE_JOBPOST";`, [event_uuid]);
+    internalAnnouncements = await dbQuery(`SELECT * FROM announcements WHERE eventuuid = ? AND type = "INTERNAL_EVENTMANAGER";`, [event_uuid]);
+    
+    const row = rows[0];
+    const embed = new EmbedBuilder()
+        .setColor(0xFFFFFF)
+        .setDescription(`## Event: ${row.title}`)
+        .addFields(
+            {
+                name: 'Description',
+                value: row.description,
+                inline: false
+            },
+            {
+                name: 'Length',
+                value: row.length || 'Unknown',
+                inline: true
+            },
+            {
+                name: 'When?',
+                value: `<t:${row.timestamp}:F>`,
+                inline: true
+            },
+            {
+                name: 'Location',
+                value: row.location || 'Unknown',
+                inline: true
+            },
+            {
+                name: 'Ticketing', 
+                value: ticketingPricesString,
+                inline: true
+            },
+            {
+                name : `Seats (${totalSeats} total, ${totalAvailableSeats} available)`,
+                value: ticketingSeatString,
+                inline: true
+            },
+            {
+                name: ' ',
+                value: " ",
+                inline: true
+            }
+        )
+        .addFields(
+            {
+                name: 'Public announcement Message Link',
+                value: (publicAnnouncements[0])? `https://discord.com/channels/${publicAnnouncements[0].guildid}/${publicAnnouncements[0].channelid}/${publicAnnouncements[0].messageid}` : "Not published yet",
+                inline: true
+            },
+            {
+                name: 'Updating Management Message Link',
+                value: (internalAnnouncements[0])? `https://discord.com/channels/${internalAnnouncements[0].guildid}/${internalAnnouncements[0].channelid}/${internalAnnouncements[0].messageid}` : "Not posted yet. Contact the developer immediately. **This is a bug.**",
+                inline: true
+            },
+            {
+                name: 'Internal Job Post Message Link',
+                value: (employeeAnnouncements[0])? `https://discord.com/channels/${employeeAnnouncements[0].guildid}/${employeeAnnouncements[0].channelid}/${employeeAnnouncements[0].messageid}` : "Not posted yet. Contact the developer immediately. **This is a bug.**",
+                inline: true
+            }
+        )
+        .setFooter({ text: `${event_uuid}; This embed doesn't update automatically.` });
+
+    
+    controlRow.addComponents(
+        new ButtonBuilder()
+            .setCustomId(`back`)
+            .setLabel('Back')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId(`publishevent?uuid=${event_uuid}`)
+            .setLabel('Publish')
+            .setStyle(ButtonStyle.Success)
+            .setDisabled(publicAnnouncements.length > 0),
+        new ButtonBuilder()
+            .setCustomId(`editevent?uuid=${rows[0].uuid}`)
+            .setLabel('Edit')
+            .setStyle(ButtonStyle.Primary),
+    );
+
+    return { content: "", embeds: [embed], components: [controlRow], ephemeral: true };
+}
+
 // Render the events for interaction responses
 async function renderEvents(interaction, events, page = 0) {
     const controlRow = new ActionRowBuilder();
 
     if (interaction.customId && interaction.customId.startsWith('select_event')) {
         const event_uuid = interaction.values[0].split('=')[1];
-        const rows = await dbQuery(`SELECT * FROM events WHERE uuid = ?;`, [event_uuid]);
-
-        if (!rows || rows.length === 0) {
-            console.error('No event found for UUID:', event_uuid);
-            return;
-        }
-
-        const row = rows[0];
-        const embed = new EmbedBuilder()
-            .setColor(0xFFFFFF)
-            .setDescription(`## Event: ${row.title}`)
-            .addFields(
-                {
-                    name: 'Description',
-                    value: row.description,
-                    inline: false
-                },
-                {
-                    name: 'Length',
-                    value: row.length || 'Unknown',
-                    inline: true
-                },
-                {
-                    name: 'When?',
-                    value: `<t:${row.timestamp}:F>`,
-                    inline: true
-                },
-                {
-                    name: 'Location',
-                    value: row.location || 'Unknown',
-                    inline: true
-                },
-            )
-            .setFooter({ text: `${event_uuid}; This embed doesn't update automatically.` });
-
-        controlRow.addComponents(
-            new ButtonBuilder()
-                .setCustomId(`back`)
-                .setLabel('Back')
-                .setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder()
-                .setCustomId(`publishevent?uuid=${event_uuid}`)
-                .setLabel('Publish')
-                .setStyle(ButtonStyle.Success),
-            new ButtonBuilder()
-                .setCustomId(`editevent?uuid=${rows[0].uuid}`)
-                .setLabel('Edit')
-                .setStyle(ButtonStyle.Primary),
-        );
-
-        return { embeds: [embed], components: [controlRow], ephemeral: true };
+        return await renderSelectedEvent(event_uuid);
     } else {
         const eventsPerPage = 2;
         const eventCount = events.length;
         const pagesNeeded = Math.ceil(eventCount / eventsPerPage);
-
         const splicedEvents = events.slice(page * eventsPerPage, (page + 1) * eventsPerPage);
 
         let descr = splicedEvents.length === 0
@@ -320,10 +489,150 @@ async function handleButtonInteraction(interaction, originalMessage) {
                             .setLabel('Location')
                             .setDescription('Edit the Location of the event')
                             .setValue('editprop=location'),
+                        new StringSelectMenuOptionBuilder()
+                            .setLabel('Ticket Pricing')
+                            .setDescription('Edit pricing of tickets')
+                            .setValue('editprop=ticket_prices'),
+                        new StringSelectMenuOptionBuilder()
+                            .setLabel('Ticket Seats')
+                            .setDescription('Edit the number of seats available')
+                            .setValue('editprop=ticket_seats')
                     )
             );
 
-            interaction.update({ components:[actionRow,actionRow2], ephemeral: true });
+            await interaction.update({ components:[actionRow,actionRow2], ephemeral: true });
+            const filter = i => i.user.id === interaction.user.id;
+            const collector = interaction.channel.createMessageComponentCollector({ filter, time: 3_600_000 });
+            collector.on('collect', async i => {
+                collector.stop();
+                const selectedprop = i.values[0].split('=')[1]
+                if (selectedprop === 'description') {
+                    i.update({ content: 'Please enter the new description for the event.', components: [], embeds: [], ephemeral: true });
+                    const filter = m => m.author.id === interaction.user.id;
+                    const collector = i.channel.createMessageCollector({ filter, time: 3_600_000 });
+                    collector.on('collect', async i => {
+                        collector.stop();
+                        i.delete();
+                        dbQuery(`UPDATE events SET description = ? WHERE uuid = ?;`, [i.content, uuid]);
+                        await interaction.editReply(await renderSelectedEvent(uuid));
+                        // TODO: update the event public announcement
+                    });
+                } else if (selectedprop === 'length') {
+                    i.update({ content: 'Please enter the new length for the event in hours.', components: [], embeds: [], ephemeral: true });
+                    const filter = m => m.author.id === interaction.user.id;
+                    const collector = i.channel.createMessageCollector({ filter, time: 3_600_000 });
+                    collector.on('collect', async i => {
+                        collector.stop();
+                        i.delete();
+                        dbQuery(`UPDATE events SET length = ? WHERE uuid = ?;`, [i.content, uuid]);
+                        await interaction.editReply(await renderSelectedEvent(uuid));
+                    });
+                } else if (selectedprop === 'timestamp') {
+                    i.update({ content: 'Please enter the new timestamp for the event as a unix timestamp.', components: [], embeds: [], ephemeral: true });
+                    const filter = m => m.author.id === interaction.user.id;
+                    const collector = i.channel.createMessageCollector({ filter, time: 3_600_000 });
+                    collector.on('collect', async i => {
+                        collector.stop();
+                        i.delete();
+                        dbQuery(`UPDATE events SET timestamp = ? WHERE uuid = ?;`, [i.content, uuid]);
+                        await interaction.editReply(await renderSelectedEvent(uuid));
+                    });
+                } else if (selectedprop === 'location') {
+                    i.update({ content: 'Please enter the new location for the event.', components: [], embeds: [], ephemeral: true });
+                    const filter = m => m.author.id === interaction.user.id;
+                    const collector = i.channel.createMessageCollector({ filter, time: 3_600_000 });
+                    collector.on('collect', async i => {
+                        collector.stop();
+                        i.delete();
+                        dbQuery(`UPDATE events SET location = ? WHERE uuid = ?;`, [i.content, uuid]);
+                        await interaction.editReply(await renderSelectedEvent(uuid));
+                    });
+                } else if (selectedprop === 'ticket_prices') {
+                    const event_uuid = uuid;
+                    ticketingSeatData = await dbQuery(tickedAndSeatsQuery, [event_uuid, event_uuid, event_uuid]);
+                    maximumSeatsData = await dbQuery(maximumSeats, [event_uuid, event_uuid]);
+                    ticketingPricesData = await dbQuery(ticketingPrices, [event_uuid, event_uuid]);
+
+                    console.log(ticketingPricesData);
+
+                    //merges the two datasets
+                    const mergedData = ticketingSeatData.map(item => {
+                        const maxSeatsItem = maximumSeatsData.find(maxItem => maxItem.roleid === item.roleid);
+                        const priceItem = ticketingPricesData.find(priceItem => priceItem.roleid === item.roleid);
+                        
+                        return {
+                            ...item,
+                            maxSeats: maxSeatsItem ? maxSeatsItem.maxSeats : null, // Add maxSeats if found, otherwise null
+                            price: priceItem ? priceItem.price : null, // Add price if found, otherwise null
+                            rolename: priceItem ? priceItem.rolename : 'normal', // Default to 'normal' if no priceItem found
+                        };
+                    });
+                    
+
+                    ticketingSeatString = '';
+                    ticketingPricesString = '';
+                    totalSeats = 0;
+                    totalAvailableSeats = 0;
+                    mergedData.forEach(ticket => {
+                        totalSeats += ticket.maxSeats;
+                        totalAvailableSeats += ticket.availableSeats;
+                        ticketingSeatString += `- **${(ticket.rolename == "normal")? "Normal":ticket.rolename}**: ${ticket.maxSeats} (${ticket.maxSeats-ticket.availableSeats} reserved)\n`;
+                        ticketingPricesString += `- **${(ticket.rolename == "normal")? "Normal":ticket.rolename}**: ${(ticket.price > 0)? ticket.price+" aUEC":"Unpurchasable"}\n`;
+                    });
+                    
+                    var embed = new EmbedBuilder()
+                        .setColor(0xFFFFFF)
+                        .setDescription(`## Ticket Prices\nAvailable roles and their prices for the event.\n${ticketingPricesString}`);
+                
+                    const controlRow = new ActionRowBuilder();
+                    //dropdown menu to select ticket to edit the price
+                    const select = new StringSelectMenuBuilder()
+                        .setCustomId('select_ticket')
+                        .setPlaceholder('Select a ticket to edit')
+
+                    mergedData.forEach(tck => {
+                        select.addOptions( 
+                            new StringSelectMenuOptionBuilder()
+                                .setLabel((tck.rolename == "normal")? "Normal":tck.rolename)
+                                .setDescription(`Edit the price for the ${tck.rolename} ticket`)
+                                .setValue('ticket='+tck.roleid)
+                        )
+                    })
+
+                    controlRow.addComponents(select);
+                    
+                    i.update({ components: [controlRow], embeds: [embed], ephemeral: true });
+                    const collectorFilter = i => i.user.id === interaction.user.id;
+                    const collector = i.channel.createMessageComponentCollector({ filter: collectorFilter, time: 3_600_000 });
+                    collector.on('collect', async i => {
+                        collector.stop();
+                        const selectedticket = i.values[0].split('=')[1];
+                        const ticket = mergedData.find(tck => tck.roleid == selectedticket);
+                        var _embed = new EmbedBuilder()
+                            .setColor(0xFFFFFF)
+                            .setDescription(`## Ticket Price\nEdit the price for the ${ticket.rolename} ticket.\nCurrent Price: ${ticket.price} aUEC\nWrite a message with the new price **as an integer**. If you want to make the ticket unpurchasable, write -1.`);
+                        i.update({ components: [], embeds: [_embed], ephemeral: true });
+                        const msgfilter = m => m.author.id === interaction.user.id;
+                        const msgcollector = i.channel.createMessageCollector({ filter: msgfilter, time: 3_600_000 });
+                        msgcollector.on('collect', async msg => {
+                            msgcollector.stop();
+                            dbQuery(`UPDATE eventguestrole SET price = ? WHERE eventid = ? AND roleid = ?;`, [msg.content, uuid, selectedticket]);
+                            msg.delete();
+                            await interaction.editReply(await renderSelectedEvent(uuid));
+                        });
+                    });
+                } else if (selectedprop === 'ticket_seats') {
+                    i.update({ content: 'Please enter the new number of seats for the event.', components: [], embeds: [], ephemeral: true });
+                    const filter = m => m.author.id === interaction.user.id;
+                    const collector = i.channel.createMessageCollector({ filter, time: 3_600_000 });
+                    collector.on('collect', async i => {
+                        collector.stop();
+                        i.delete();
+                        dbQuery(`UPDATE events SET ticket_seats = ? WHERE uuid = ?;`, [i.content, uuid]);
+                        await interaction.editReply(await renderSelectedEvent(uuid));
+                    });
+                }
+            })
         }
     } catch (err) {
         console.error('Error handling interaction:', err);
