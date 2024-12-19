@@ -43,6 +43,15 @@ async function createChannelWithUserAndRole(guild, channelName, userId, roleId) 
     return channel;
 }
 
+function dbQuery(db, query, params) {
+    return new Promise((resolve, reject) => {
+        db.all(query, params, (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows);
+        });
+    });
+}
+
 
 module.exports = {
     getRolePrices(db, eventId) {
@@ -59,6 +68,28 @@ module.exports = {
                     resolve(rows); // Resolve the promise with the result
                 }
             });
+        });
+    },
+    async renderEventInfo(db, interaction, uuid_, _isempheral = false) {
+        return new Promise((resolve, reject) => {
+            dbQuery(db, `SELECT * FROM events WHERE uuid = ?;`, [uuid])
+                .then((rows) => {
+                    let event = rows[0];
+                    const _embed = new EmbedBuilder()
+                        .setTitle(event.title)
+                        .setColor(0x062d79)
+                        .setAuthor({ name: 'Quantas Starlines' })
+                        .setDescription(event.description)
+                        .addFields(
+                            { name: 'Boarding and requirements', value: `Boarding commences at **${event.boardinglocation}** <t:${event.timestamp}:R>.` },
+                            { name: 'Duration', value: `${event.length}` },
+                        )
+                        .setThumbnail(event.imageurl)
+                        .setFooter({ text: (_isempheral == false)? 'This message updates automagically. Last updated: ':'Posted: '})
+                        .setTimestamp(Date.now());   
+                    resolve({ embeds:[_embed], fetchReply: true });
+                })
+                .catch((err) => reject(err));
         });
     },
     async renderPublish(db, interaction, event, location, preview=false) {
@@ -148,12 +179,29 @@ module.exports = {
             if (err) {
                 console.error(err.message);
             } else {
-                row = row[0]
-                client.guilds.cache.get(row.guildid).channels.cache.get(row.channelid).messages.fetch(row.messageid).then((msg) =>{
-                    module.exports.renderPublish(db, null, row, row.location, false).then((newEmbed) => {
-                        msg.edit(newEmbed)
-                    })
-                });
+                row = row[0]    
+                if (row) {
+                    client.guilds.cache.get(row.guildid).channels.cache.get(row.channelid).messages.fetch(row.messageid).then((msg) =>{
+                        module.exports.renderPublish(db, null, row, row.location, false).then((newEmbed) => {
+                            msg.edit(newEmbed)
+                            db.all(`SELECT * from events join announcements ON announcements.eventuuid = events.uuid WHERE type = "PUBLIC_EVENT_INFO" and uuid = ?;`, [event_uuid], function (err, rows) {
+                                if (err) {
+                                    console.error(err.message);
+                                } else {
+                                    rows.forEach(row => {
+                                        if (row) {
+                                            client.guilds.cache.get(row.guildid).channels.cache.get(row.channelid).messages.fetch(row.messageid).then((msg) =>{
+                                                module.exports.renderEventInfo(db, null, row.eventuuid).then((newEmbed) => {
+                                                    msg.edit(newEmbed)
+                                                })
+                                            });
+                                        }
+                                    })
+                                }
+                            })
+                        })
+                    });
+                }
             }
         })
     },
@@ -333,16 +381,17 @@ module.exports = {
                                                                             i.reply({content:`Payment thread created. Please proceed to the channel ${channel} to complete the payment.`, ephemeral: true});
                                                                             var embed = new EmbedBuilder()
                                                                                 .setTitle("Payment thread")
-                                                                                .setDescription("Welome to the payment thread. Please send "+ticketPrice+" aUEC to the following account: RSI-1234567 and then send an screenshot of the transaction here. \nThe button below will be used by the management to confirm the payment.")
+                                                                                .setDescription("Welome to the payment thread. Please send "+ticketPrice+" aUEC to the following account: QuantasStarlines and then send an screenshot of the transaction here. \nThe button below will be used by the management to confirm the payment.")
                                                                                 .setColor(0x062d79)
-                                                                            var actionRow = new ActionRowBuilder()
-                                                                            actionRow.addComponents(
-                                                                                new ButtonBuilder()
-                                                                                    .setCustomId('confirmPayment?uuid='+eventid+'?userid='+i.user.id)
-                                                                                    .setLabel('Confirm payment')
-                                                                                    .setStyle('Success')
-                                                                            );
-                                                                            channel.send({ content: `<@${i.user.id}> <@&${"1296029870794477639"}>`, components: [actionRow],embeds:[embed] });
+                                                                            channel.send({ content: `<@${i.user.id}> <@&${"1296029870794477639"}>`, components: [],embeds:[embed], fetchReply: true }).then((msg) => {
+                                                                                db.run(`INSERT INTO announcements (type, eventuuid, guildid, messageid, channelid) VALUES ("PAYMENT_CONFIRMATION",?,?,?,?);`,[eventid, i.guild.id, msg.id, msg.channel.id], function(err) {
+                                                                                    if (err) {
+                                                                                        console.error(err.message);
+                                                                                    } else {
+                                                                                        console.log("Payment confirmation message created")
+                                                                                    }
+                                                                                });
+                                                                            });
                                                                         } catch (error) {
                                                                             console.error(error);
                                                                             i.reply({content:`Failed to create channel: ${error.message}`, ephemeral: true});
@@ -355,12 +404,10 @@ module.exports = {
                                                                 if (err) {
                                                                     console.error(err.message);
                                                                 } else {
-                                                                    var embed = new EmbedBuilder()
-                                                                        .setTitle("Singup confirmed")
-                                                                        .setDescription("You have signed up for the event. Because your ticket is free, you don't have to open a payment thread.")
-                                                                        .setColor(0x2D7906)
-                                                                    i.reply({ embeds:[embed], ephemeral: true });
-                                                                    updateManagementMessage(db, i.client, eventid);
+                                                                    module.exports.renderEventInfo(db, i, eventid).then((renderEventInfo) => {
+                                                                        i.reply({ content: "You have signed up for the event. Because your ticket is free, you don't have to open a payment thread.", embeds:[renderEventInfo.embeds[0]], ephemeral: true });
+                                                                        updateManagementMessage(db, i.client, eventid);
+                                                                    })
                                                                 }
                                                             });
                                                         }

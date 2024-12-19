@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, ChannelType, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ComponentType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, embedLength, ChannelSelectMenuBuilder } = require('discord.js');
 const { db } = require('../../bot');
 const { getSetting, setSetting, getIdByGuildId } = require('../../utility/dbHelper');
-const { renderPublish, addPublishMessageComponentsCollector, updatePublicAnnoucementMessage } = require('../../utility/publish');
+const { renderPublish, renderEventInfo, addPublishMessageComponentsCollector, updatePublicAnnoucementMessage } = require('../../utility/publish');
 const { updateManagementMessage } = require('../../utility/jobpost-reaction');
 
 // this is the query that will be used to get the available seats and the pricing for the event
@@ -189,8 +189,8 @@ async function renderSelectedEvent(event_uuid) {
                 inline: true
             },
             {
-                name: ' ',
-                value: " ",
+                name: 'Boarding Location',
+                value: row.boardinglocation || 'Unknown',
                 inline: true
             }
         )
@@ -392,6 +392,22 @@ async function handleButtonInteraction(interaction, originalMessage) {
                                     dbQuery('SELECT * FROM events WHERE uuid = ?;', [event_uuid]).then(async _events => {
                                         const publicannounce = await selectedChannel.send(await renderPublish(db, interaction, rows[0], _events[0].location)); // TODO: add signups here AND DB entry for announcements
                                         addPublishMessageComponentsCollector(publicannounce, db);
+                                        getSetting(db, interaction.guild.id, 'boarding_lobby_channel').then(async eventchannel => {
+                                            if (eventchannel) {
+                                                const channelId = eventchannel.slice(2, -1);
+                                                const lobbyChannel = interaction.guild.channels.cache.get(channelId);
+                                                if (lobbyChannel) {
+                                                    console.log(lobbyChannel);
+                                                    try {
+                                                        const messagetosend = await renderEventInfo(db, interaction, event_uuid);
+                                                        const lobbyMessage = await lobbyChannel.send(messagetosend);
+                                                        await dbQuery(`INSERT INTO announcements (type, eventuuid, guildid, messageid, channelid) VALUES (?,?,?,?,?);`, ["PUBLIC_EVENT_INFO",event_uuid,interaction.guild.id,lobbyMessage.id,lobbyChannel.id]);
+                                                    } catch (err) {
+                                                        console.error("Error while posting info message: ",err);
+                                                    }
+                                                }
+                                            }
+                                        })
                                         
                                         await dbQuery(`INSERT INTO announcements (type, eventuuid, guildid, messageid, channelid) VALUES (?,?,?,?,?);`, ["PUBLIC_EVENT",event_uuid,interaction.guild.id,publicannounce.id,selectedChannel.id]);
                                     })
@@ -491,6 +507,10 @@ async function handleButtonInteraction(interaction, originalMessage) {
                             .setDescription('Edit the Location of the event')
                             .setValue('editprop=location'),
                         new StringSelectMenuOptionBuilder()
+                            .setLabel('Boarding Location')
+                            .setDescription('Edit the Boarding Location of the event')
+                            .setValue('editprop=boardinglocation'),
+                        new StringSelectMenuOptionBuilder()
                             .setLabel('Ticket Pricing')
                             .setDescription('Edit pricing of tickets')
                             .setValue('editprop=ticket_prices'),
@@ -548,6 +568,17 @@ async function handleButtonInteraction(interaction, originalMessage) {
                         collector.stop();
                         i.delete();
                         dbQuery(`UPDATE events SET location = ? WHERE uuid = ?;`, [i.content, uuid]);
+                        updatePublicAnnoucementMessage(db, interaction.client, uuid);
+                        await interaction.editReply(await renderSelectedEvent(uuid));
+                    });
+                } else if (selectedprop === 'boardinglocation') {
+                    i.update({ content: 'Please enter the new boarding location for the event.', components: [], embeds: [], ephemeral: true });
+                    const filter = m => m.author.id === interaction.user.id;
+                    const collector = i.channel.createMessageCollector({ filter, time: 3_600_000 });
+                    collector.on('collect', async i => {
+                        collector.stop();
+                        i.delete();
+                        dbQuery(`UPDATE events SET boardinglocation = ? WHERE uuid = ?;`, [i.content, uuid]);
                         updatePublicAnnoucementMessage(db, interaction.client, uuid);
                         await interaction.editReply(await renderSelectedEvent(uuid));
                     });

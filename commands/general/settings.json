@@ -16,6 +16,14 @@
                 "public_event_announcements_channel": {
                     "friendlyName": "Public Event Announcements Channel",
                     "dataType": "channel"
+                },
+                "event_reminder_channel": {
+                    "friendlyName": "Event Reminder Channel",
+                    "dataType": "channel"
+                },
+                "boarding_lobby_channel": {
+                    "friendlyName": "Boarding Lobby Channel",
+                    "dataType": "channel"
                 }
             }
         },
