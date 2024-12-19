@@ -1,12 +1,14 @@
 // Require the necessary discord.js classes
 const fs = require('node:fs');
+const schedule = require('node-schedule');
 const path = require('node:path');
 const { Client, Collection, Events, GatewayIntentBits } = require('discord.js');
 const { token } = require('./config.json');
-const { verifySettingsJson, setSetting } = require('./utility/dbHelper');
+const { verifySettingsJson, setSetting, getSetting } = require('./utility/dbHelper');
 const { handleMessage } = require('./utility/jobpost-reaction');
 const { settingsTemplate } = require('./commands/general/settings.json');
 const { updateManagementMessage } = require('./utility/jobpost-reaction');
+const { addPublishMessageComponentsCollector } = require('./utility/publish');
 
 if (!verifySettingsJson(settingsTemplate)){
 	console.log("Invalid settings.json file.");
@@ -52,8 +54,31 @@ db.run(`CREATE TABLE IF NOT EXISTS events (
 	title TEXT,
 	description TEXT,
 	imageurl TEXT,
+	imageauthor TEXT,
+	location TEXT,
+	boardinglocation TEXT,
+	sent_12hr INTEGER DEFAULT 0, 
+	sent_start INTEGER DEFAULT 0,
+	length TEXT,
 	FOREIGN KEY(guildid) REFERENCES guilds(id)
 )`);
+
+db.run(`
+	CREATE TABLE IF NOT EXISTS "guestSignups" (
+		"serveId"	INTEGER NOT NULL UNIQUE,
+		"memberId"	TEXT NOT NULL,
+		"eventId"	TEXT,
+		"jobId"	TEXT,
+		"guildId"	TEXT,
+		"ticketRoleId"	INTEGER,
+		"status"	TEXT,
+		PRIMARY KEY("serveId" AUTOINCREMENT),
+		FOREIGN KEY("eventId") REFERENCES "events"("uuid"),
+		FOREIGN KEY("guildId") REFERENCES "guilds"("guildid"),
+		FOREIGN KEY("jobId") REFERENCES "jobs"("jobid"),
+		FOREIGN KEY("ticketRoleId") REFERENCES "ticketroles"("ticketroleid")
+	);
+`)
 
 db.run(`CREATE TABLE IF NOT EXISTS announcements (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -84,6 +109,37 @@ db.run(`CREATE TABLE IF NOT EXISTS settings (
     FOREIGN KEY(id) REFERENCES guilds(id),
     UNIQUE(id, key)
 )`);
+
+db.run(`CREATE TABLE IF NOT EXISTS ticketroles (
+    ticketroleid INTEGER PRIMARY KEY AUTOINCREMENT,
+	guildid TEXT NOT NULL,
+    rolename TEXT NOT NULL,
+    FOREIGN KEY(guildid) REFERENCES guilds(id)
+)`);
+	
+db.run(`CREATE TABLE IF NOT EXISTS eventguestrole (
+	eventid TEXT NOT NULL,
+	roleid TEXT NOT NULL,
+	price INTEGER NOT NULL,
+	seats INTEGER NOT NULL,
+	FOREIGN KEY(eventid) REFERENCES events(uuid),
+	FOREIGN KEY(roleid) REFERENCES ticketroles(ticketroleid)
+)`);
+
+//only insert once
+db.all(`SELECT * FROM ticketroles`, function(err, rows) {
+	if (err) {
+		console.error(err.message);
+		return;
+	} 
+
+	if (rows.length == 0) {
+		db.run(`INSERT INTO ticketroles (guildid, rolename) VALUES ('836254833874567220', 'normal')`);
+		db.run(`INSERT INTO ticketroles (guildid, rolename) VALUES ('836254833874567220', 'Admiral')`);
+		db.run(`INSERT INTO ticketroles (guildid, rolename) VALUES ('836254833874567220', 'Legatus')`);
+	}
+});
+
 
 // Code for inserting default settings into the database, if they are unset
 db.all("SELECT * FROM guilds", function(err, guilds) {
@@ -172,6 +228,127 @@ client.on('raw', (event) => {
 
 // Login to Discord with your client's token
 client.login(token).then(async () => {
+	function getUpcomingEvents() {
+		return new Promise((resolve, reject) => {
+			const query = `
+				SELECT * FROM events
+				WHERE timestamp > ?
+				ORDER BY timestamp ASC
+			`;
+			db.all(query, [Date.now()/1000], (err, rows) => {
+				if (err) reject(err);
+				else resolve(rows);
+			});
+		});
+	}
+
+	function markReminderSent(uuid, type) {
+		const column = type === '12hr' ? 'sent_12hr' : 'sent_start';
+		const query = `UPDATE events SET ${column} = 1 WHERE uuid = ?`;
+	
+		return new Promise((resolve, reject) => {
+			db.run(query, [uuid], function (err) {
+				if (err) reject(err);
+				else resolve();
+			});
+		});
+	}
+
+	function scheduleEvent(event) {
+		const eventTime1hr = new Date(event.timestamp*1000 - 60 * 60 * 1000);
+		const reminder12hrTime = new Date(event.timestamp*1000 - 18 * 60 * 60 * 1000);
+	
+		// Schedule 12-hour reminder
+		if (!event.sent_12hr && reminder12hrTime > Date.now()) {
+			console.log(`Scheduling 18-hour reminder for event: ${reminder12hrTime}`);
+			schedule.scheduleJob(reminder12hrTime, async () => {
+				console.log(`18-hour reminder for event: ${event.uuid}`);
+				getSetting(db, event.guildid, 'event_reminder_channel').then(channelId => {
+					getSetting(db, event.guildid, 'passenger-role').then(passroleid => {
+						if (passroleids) {
+							sole.log(`Sending event start reminder to channel: ${channelId}`);
+							//remove <# and >
+							channelId = channelId.toString().slice(2, -1);
+							client.channels.fetch(channelId).then(channel => {
+								channel.send(`${passroleid} 18-hour reminder for ${event.title} starting in <t:${event.timestamp}:R>!`);
+								markReminderSent(event.uuid, '12hr');
+							});
+						} else {
+							console.log(`Sending event start reminder to channel: ${channelId}`);
+							//remove <# and >
+							channelId = channelId.toString().slice(2, -1);
+							client.channels.fetch(channelId).then(channel => {
+								channel.send(`18-hour reminder for ${event.title} starting in <t:${event.timestamp}:R>!`);
+								markReminderSent(event.uuid, '12hr');
+							});
+						}
+					})
+
+					getSetting(db, event.guildid, 'employee-role').then(roleid => {
+						if (roleid) {
+							getSetting(db, event.guildid, 'employee_reminder_channel').then(employeereminderchannel => {
+								if (employeereminderchannel) {
+									console.log(`Sending event start reminder to channel: ${channelId}`);
+									employeereminderchannel = employeereminderchannel.toString().slice(2, -1);
+									client.channels.fetch(employeereminderchannel).then(channel => {
+										channel.send(`${roleid} 18-hour reminder for ${event.title} starting in <t:${event.timestamp}:R>!`);
+										markReminderSent(event.uuid, '12hr');
+									});
+								} else {
+									console.log(`Sending event start reminder to channel: ${channelId}`);
+									channelId = channelId.toString().slice(2, -1);
+									client.channels.fetch(channelId).then(channel => {
+										channel.send(`${roleid} 18-hour reminder for ${event.title} starting in <t:${event.timestamp}:R>!`);
+										markReminderSent(event.uuid, '12hr');
+									});
+								}
+							})
+						}
+					});
+				});
+			});
+		}
+	
+		// Schedule event start reminder
+		if (!event.sent_start && eventTime1hr > Date.now()) {
+			console.log(`Scheduling event start reminder for event: ${eventTime1hr}`);
+			schedule.scheduleJob(eventTime1hr, async () => {
+				console.log(`Event starting in one Hour: ${event.uuid}`);
+				//get the "event_remider_channel" setting and send a reminder to that channel
+				getSetting(db, event.guildid, 'event_reminder_channel').then(channelId => {
+					getSetting(db, event.guildid, 'passenger-role').then(passroleid => {
+						if (passroleid) {
+							onsole.log(`Sending event start reminder to channel: ${channelId}`);
+							//remove <# and >
+							channelId = channelId.toString().slice(2, -1);
+							client.channels.fetch(channelId).then(channel => {
+								channel.send(`${passroleid} 1-hour reminder for ${event.title} starting in <t:${event.timestamp}:R>!`);
+								markReminderSent(event.uuid, 'start');
+							});
+						} else {
+							console.log(`Sending event start reminder to channel: ${channelId}`);
+							//remove <# and >
+							channelId = channelId.toString().slice(2, -1);
+							client.channels.fetch(channelId).then(channel => {
+								channel.send(`1-hour reminder for ${event.title} starting in <t:${event.timestamp}:R>!`);
+								markReminderSent(event.uuid, 'start');
+							});
+						}
+					})
+
+				});
+			});
+		}
+	}
+
+	async function loadAndScheduleEvents() {
+		const events = await getUpcomingEvents();
+		console.log(`Loaded ${events.length} upcoming events`);
+		events.forEach(scheduleEvent);
+	}
+	
+	loadAndScheduleEvents();
+
     // Get all announcements that are in the future
     const timestamp = Math.floor(Date.now() / 1000);
     db.all(`SELECT * FROM events JOIN announcements ON events.uuid = announcements.eventuuid WHERE timestamp > ?;`, [timestamp], async (err, rows) => {
@@ -184,11 +361,21 @@ client.login(token).then(async () => {
             if (!rows || rows.length === 0) return;
 
             for (const row of rows) {
-                const messageId = row.messageid;
-                const channelId = row.channelid;
-                const channel = await client.channels.fetch(channelId);
-                
-                await handleMessage(client, db, messageId, channel, row.uuid, row.guildid); //jopost-reaction.js
+				try {
+					const messageId = row.messageid;
+					const channelId = row.channelid;
+					const channel = await client.channels.fetch(channelId);
+					
+					if (row.type == 'EMPLOYEE_JOBPOST') 
+						await handleMessage(client, db, messageId, channel, row.uuid, row.guildid); //jopost-reaction.js
+					else if (row.type == 'PUBLIC_EVENT') {
+						//get message by ids
+						const message = await channel.messages.fetch(messageId);
+						await addPublishMessageComponentsCollector(message, db)
+					}
+				} catch (err) {
+					console.error("error in bot.js");
+				}
             }
         } catch (err) {
             console.error(err);

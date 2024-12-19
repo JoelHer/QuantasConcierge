@@ -12,6 +12,22 @@
                 "job_post_channel": {
                     "friendlyName": "Job Post Channel",
                     "dataType": "channel"
+                },
+                "employee_reminder_channel": {
+                    "friendlyName": "Employee reminder Channel",
+                    "dataType": "channel"
+                },
+                "public_event_announcements_channel": {
+                    "friendlyName": "Public Event Announcements Channel",
+                    "dataType": "channel"
+                },
+                "event_reminder_channel": {
+                    "friendlyName": "Event Reminder Channel",
+                    "dataType": "channel"
+                },
+                "boarding_lobby_channel": {
+                    "friendlyName": "Boarding Lobby Channel",
+                    "dataType": "channel"
                 }
             }
         },
@@ -31,6 +47,18 @@
             "single": "Role",
             "description": "Settings for roles",
             "settings": {
+                "management-role": {
+                    "friendlyName": "Role for management",
+                    "dataType": "role"
+                },
+                "passenger-role": {
+                    "friendlyName": "Role for the passenger",
+                    "dataType": "role"
+                },
+                "employee-role": {
+                    "friendlyName": "Role for the employees",
+                    "dataType": "role"
+                },
                 "job-mention": {
                     "friendlyName": "Roles to mention in job post",
                     "dataType": "array[role]"

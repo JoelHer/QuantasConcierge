@@ -6,6 +6,7 @@ function verifySettingsJson(obj) {
 
 
 async function setSetting(db, id, key, value) {
+    console.log('Setting ', key, ' to ', value);
     return new Promise((resolve, reject) => {
         db.run(`INSERT INTO settings (id, key, value) 
                 VALUES (?, ?, ?)
@@ -28,6 +29,17 @@ async function getSetting(db, guildid, key) {
                 return reject(err);
             }
             resolve(row ? row.value : null);
+        });
+    });
+}
+
+async function getIdByGuildId(db, guildid) {
+    return new Promise((resolve, reject) => {
+        db.get(`SELECT * FROM guilds WHERE guildid = ?`, [guildid], (err, row) => {
+            if (err) {
+                return reject(err);
+            }
+            resolve(row ? row.id : null);
         });
     });
 }
@@ -64,6 +76,7 @@ async function updateSetting(db, interaction, key, newValue, ephemeral = false) 
 module.exports = {
     setSetting,
     getSetting,
+    getIdByGuildId,
     updateSetting,
     verifySettingsJson
 };
