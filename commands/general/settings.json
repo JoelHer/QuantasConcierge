@@ -13,6 +13,10 @@
                     "friendlyName": "Job Post Channel",
                     "dataType": "channel"
                 },
+                "employee_reminder_channel": {
+                    "friendlyName": "Employee reminder Channel",
+                    "dataType": "channel"
+                },
                 "public_event_announcements_channel": {
                     "friendlyName": "Public Event Announcements Channel",
                     "dataType": "channel"
@@ -49,6 +53,10 @@
                 },
                 "passenger-role": {
                     "friendlyName": "Role for the passenger",
+                    "dataType": "role"
+                },
+                "employee-role": {
+                    "friendlyName": "Role for the employees",
                     "dataType": "role"
                 },
                 "job-mention": {

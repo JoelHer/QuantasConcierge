@@ -262,14 +262,48 @@ client.login(token).then(async () => {
 		if (!event.sent_12hr && reminder12hrTime > Date.now()) {
 			console.log(`Scheduling 18-hour reminder for event: ${reminder12hrTime}`);
 			schedule.scheduleJob(reminder12hrTime, async () => {
-				console.log(`12-hour reminder for event: ${event.uuid}`);
+				console.log(`18-hour reminder for event: ${event.uuid}`);
 				getSetting(db, event.guildid, 'event_reminder_channel').then(channelId => {
-					console.log(`Sending event start reminder to channel: ${channelId}`);
-					//remove <# and >
-					channelId = channelId.toString().slice(2, -1);
-					client.channels.fetch(channelId).then(channel => {
-						channel.send(`<@&1318171765989703690> 18-hour reminder for ${event.title} starting in <t:${event.timestamp}:R>!`);
-						markReminderSent(event.uuid, '12hr');
+					getSetting(db, event.guildid, 'passenger-role').then(passroleid => {
+						if (passroleids) {
+							sole.log(`Sending event start reminder to channel: ${channelId}`);
+							//remove <# and >
+							channelId = channelId.toString().slice(2, -1);
+							client.channels.fetch(channelId).then(channel => {
+								channel.send(`${passroleid} 18-hour reminder for ${event.title} starting in <t:${event.timestamp}:R>!`);
+								markReminderSent(event.uuid, '12hr');
+							});
+						} else {
+							console.log(`Sending event start reminder to channel: ${channelId}`);
+							//remove <# and >
+							channelId = channelId.toString().slice(2, -1);
+							client.channels.fetch(channelId).then(channel => {
+								channel.send(`18-hour reminder for ${event.title} starting in <t:${event.timestamp}:R>!`);
+								markReminderSent(event.uuid, '12hr');
+							});
+						}
+					})
+
+					getSetting(db, event.guildid, 'employee-role').then(roleid => {
+						if (roleid) {
+							getSetting(db, event.guildid, 'employee_reminder_channel').then(employeereminderchannel => {
+								if (employeereminderchannel) {
+									console.log(`Sending event start reminder to channel: ${channelId}`);
+									employeereminderchannel = employeereminderchannel.toString().slice(2, -1);
+									client.channels.fetch(employeereminderchannel).then(channel => {
+										channel.send(`${roleid} 18-hour reminder for ${event.title} starting in <t:${event.timestamp}:R>!`);
+										markReminderSent(event.uuid, '12hr');
+									});
+								} else {
+									console.log(`Sending event start reminder to channel: ${channelId}`);
+									channelId = channelId.toString().slice(2, -1);
+									client.channels.fetch(channelId).then(channel => {
+										channel.send(`${roleid} 18-hour reminder for ${event.title} starting in <t:${event.timestamp}:R>!`);
+										markReminderSent(event.uuid, '12hr');
+									});
+								}
+							})
+						}
 					});
 				});
 			});
@@ -282,13 +316,26 @@ client.login(token).then(async () => {
 				console.log(`Event starting in one Hour: ${event.uuid}`);
 				//get the "event_remider_channel" setting and send a reminder to that channel
 				getSetting(db, event.guildid, 'event_reminder_channel').then(channelId => {
-					console.log(`Sending event start reminder to channel: ${channelId}`);
-					//remove <# and >
-					channelId = channelId.toString().slice(2, -1);
-					client.channels.fetch(channelId).then(channel => {
-						channel.send(`<@&1318171765989703690> 1-hour reminder for ${event.title} starting in <t:${event.timestamp}:R>!`);
-						markReminderSent(event.uuid, 'start');
-					});
+					getSetting(db, event.guildid, 'passenger-role').then(passroleid => {
+						if (passroleid) {
+							onsole.log(`Sending event start reminder to channel: ${channelId}`);
+							//remove <# and >
+							channelId = channelId.toString().slice(2, -1);
+							client.channels.fetch(channelId).then(channel => {
+								channel.send(`${passroleid} 1-hour reminder for ${event.title} starting in <t:${event.timestamp}:R>!`);
+								markReminderSent(event.uuid, 'start');
+							});
+						} else {
+							console.log(`Sending event start reminder to channel: ${channelId}`);
+							//remove <# and >
+							channelId = channelId.toString().slice(2, -1);
+							client.channels.fetch(channelId).then(channel => {
+								channel.send(`1-hour reminder for ${event.title} starting in <t:${event.timestamp}:R>!`);
+								markReminderSent(event.uuid, 'start');
+							});
+						}
+					})
+
 				});
 			});
 		}
