@@ -1,3 +1,4 @@
+const { checkPermission } = require('../../utility/checkpermission');
 const { SlashCommandBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { EmbedBuilder } = require('discord.js');
 const { getSetting } = require('../../utility/dbHelper');
@@ -31,6 +32,11 @@ module.exports = {
                 .setRequired(false)),
     
     async execute(interaction) {
+        const haspermission = await checkPermission(db, interaction.user.id, interaction.guild.id, interaction.client);
+        if (!haspermission) {
+            return interaction.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
+        }
+
         const _roles = await getSetting(db, interaction.guild.id, 'job-mention');
 
         const title = interaction.options.getString('title');

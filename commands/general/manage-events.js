@@ -3,7 +3,7 @@ const { db } = require('../../bot');
 const { getSetting, setSetting, getIdByGuildId } = require('../../utility/dbHelper');
 const { renderPublish, renderEventInfo, addPublishMessageComponentsCollector, updatePublicAnnoucementMessage } = require('../../utility/publish');
 const { updateManagementMessage } = require('../../utility/jobpost-reaction');
-
+const { checkPermission } = require('../../utility/checkpermission');
 // this is the query that will be used to get the available seats and the pricing for the event
 let tickedAndSeatsQuery = `
     -- First part: If records exist in eventguestrole for the event, get available seats.
@@ -764,7 +764,12 @@ module.exports = {
         .setDescription('Event Management'),
     async execute(interaction) {
         await interaction.deferReply({ ephemeral: true });
-
+        
+        const haspermission = await checkPermission(db, interaction.user.id, interaction.guild.id, interaction.client);
+        if (!haspermission) {
+            return interaction.editReply({ content: 'You do not have permission to use this command.', ephemeral: true });
+        }
+        
         try {
             const timestamp = Math.floor(Date.now() / 1000);
             const rows = await dbQuery(`SELECT * FROM events WHERE timestamp > ? ORDER BY timestamp ASC;`, [timestamp]);

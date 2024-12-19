@@ -43,6 +43,10 @@
             "single": "Role",
             "description": "Settings for roles",
             "settings": {
+                "management-role": {
+                    "friendlyName": "Roles that allows the management of events",
+                    "dataType": "role"
+                },
                 "job-mention": {
                     "friendlyName": "Roles to mention in job post",
                     "dataType": "array[role]"
