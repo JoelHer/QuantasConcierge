@@ -1,5 +1,6 @@
 const { EmbedBuilder, PermissionsBitField, ActionRowBuilder, ButtonComponent, ButtonBuilder } = require('discord.js');
 const { updateManagementMessage } = require('./jobpost-reaction');
+const { getSetting } = require('./dbHelper');
 const startsWithVowel = str => /^[aeiou]/i.test(str);
 
 async function createChannelWithUserAndRole(guild, channelName, userId, roleId) {
@@ -70,7 +71,7 @@ module.exports = {
             });
         });
     },
-    async renderEventInfo(db, interaction, uuid_, _isempheral = false) {
+    async renderEventInfo(db, interaction, uuid, _isempheral = false) {
         return new Promise((resolve, reject) => {
             dbQuery(db, `SELECT * FROM events WHERE uuid = ?;`, [uuid])
                 .then((rows) => {
@@ -406,7 +407,24 @@ module.exports = {
                                                                 } else {
                                                                     module.exports.renderEventInfo(db, i, eventid).then((renderEventInfo) => {
                                                                         i.reply({ content: "You have signed up for the event. Because your ticket is free, you don't have to open a payment thread.", embeds:[renderEventInfo.embeds[0]], ephemeral: true });
-                                                                        updateManagementMessage(db, i.client, eventid);
+                                                                        try {
+                                                                            updateManagementMessage(db, i.client, eventid);
+                                                                        } catch (error) {
+                                                                            console.error("Failed to update management message", error)
+                                                                        }
+                                                                        getSetting(db, i.guild.id, "passenger-role").then((passengerRoleId) => {
+                                                                            if (passengerRoleId) {
+                                                                                try {
+                                                                                    //remove the <@&> from the string
+                                                                                    passengerRoleId = passengerRoleId.replace("<@&", "").replace(">", "");
+                                                                                    i.guild.members.fetch(i.user.id).then((member) => {
+                                                                                        member.roles.add(passengerRoleId);
+                                                                                    });
+                                                                                } catch (error) {
+                                                                                    console.error(error);
+                                                                                }
+                                                                            }
+                                                                        })
                                                                     })
                                                                 }
                                                             });

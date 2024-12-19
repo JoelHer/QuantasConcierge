@@ -44,7 +44,11 @@
             "description": "Settings for roles",
             "settings": {
                 "management-role": {
-                    "friendlyName": "Roles that allows the management of events",
+                    "friendlyName": "Role for management",
+                    "dataType": "role"
+                },
+                "passenger-role": {
+                    "friendlyName": "Role for the passenger",
                     "dataType": "role"
                 },
                 "job-mention": {
