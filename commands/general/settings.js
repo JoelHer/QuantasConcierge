@@ -2,7 +2,7 @@ const { SlashCommandBuilder, ComponentType, EmbedBuilder, ButtonBuilder, ButtonS
 const { db } = require('../../bot');
 const { settingsTemplate } = require('./settings.json')
 const { setSetting, updateSetting, getSetting } = require('../../utility/dbHelper');
-
+const { checkPermission } = require('../../utility/checkpermission');
 async function parseRole(inputString, guild) {
     // Regular expressions to extract the user and role mentions
     const userMentionRegex = /<@!?(\d+)>/;
@@ -77,7 +77,7 @@ async function parsesetting(_value, _datatype, guild) {
 async function renderPage(interaction, category, page=0) {
     let copiedSettings = structuredClone(settingsTemplate);
 
-    const settingsPerPage = 2;
+    const settingsPerPage = 5;
     
     var _strb = "";
     const row1 = new ActionRowBuilder()
@@ -270,7 +270,10 @@ module.exports = {
         .setDescription('Opens the settings menu.'),
     async execute(interaction) {
         await interaction.deferReply({ephemeral: true});
-
+        const haspermission = await checkPermission(db, interaction.user.id, interaction.guild.id, interaction.client);
+        if (!haspermission) {
+            return interaction.editReply({ content: 'You do not have permission to use this command.', ephemeral: true });
+        }
         try {
             db.get('SELECT * FROM guilds WHERE guildid = ?', [interaction.guild.id], (err, row) => {
                 if (err) {

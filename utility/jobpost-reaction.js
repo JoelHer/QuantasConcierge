@@ -1,7 +1,24 @@
 const { SlashCommandBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { EmbedBuilder } = require('discord.js');
 
+
 module.exports = {
+    async getRolePrices(db, eventId) {
+        const sql = `
+            SELECT tr.rolename, COALESCE(egr.seats, 0) AS seats, COALESCE(egr.price, 0) AS price
+            FROM ticketroles tr LEFT JOIN eventguestrole egr ON tr.ticketroleid = egr.roleid AND egr.eventid = ?
+        `;
+    
+        return new Promise((resolve, reject) => {
+            db.all(sql, [eventId], (err, rows) => {
+                if (err) {
+                    reject(err); // Reject the promise on error
+                } else {
+                    resolve(rows); // Resolve the promise with the result
+                }
+            });
+        });
+    },
     async handleMessage (client, db, messageId, channel, eventuuid, guildid) {
         try {
             const fetchedMessage = await channel.messages.fetch(messageId);
@@ -31,7 +48,41 @@ module.exports = {
     },
     compileGuestStatus(db, eventuuid) {
         return new Promise((resolve, reject) => {
-            resolve("NOT IMPLEMENTED");
+            db.all('SELECT * FROM events WHERE uuid = ?', [eventuuid], function (err, evRows) {
+                eventRow = evRows[0]
+                db.all(`SELECT * FROM guestSignups WHERE eventid = ?`, [eventuuid], function (err, rows) {
+                    if (err) {
+                        console.error(err.message);
+                        reject("Error fetching data from internal database. Please contact the bot owner.");
+                        return;
+                    }
+
+                    module.exports.getRolePrices(db, eventuuid).then((rolePrices) => {
+                        console.log(rolePrices)
+                        result = ""
+                        capacity = 0
+
+                        rolePrices.forEach((role) => {
+                            if (role.seats > 0) {
+                                capacity += role.seats
+                            }
+                        });
+                        if (capacity == 0)
+                            capacity = 25
+                        rows.forEach((row) => {
+                            //console.log(row)
+                            result += `‎     ‎🟢  <@${row.memberId}>\n`;
+                        });
+        
+
+                        resolve({
+                            "guests": (result == "") ? "No guests have signed up yet." : result,
+                            "title": `Participants (${rows.length}/${capacity})`,
+                        });
+                    });
+
+                })
+            })
         })
     },
     compileEmployeeStatus(db, eventuuid) {
@@ -91,7 +142,7 @@ module.exports = {
         })
     },
     buildEventManagerMessage(db, eventid) {
-        console.log("Building event manager message for event "+eventid);
+        //console.log("Building event manager message for event "+eventid);
         return new Promise((resolve, reject) => {
             db.all(`SELECT * from events join announcements ON announcements.eventuuid = events.uuid WHERE uuid = ? LIMIT 1`, [eventid], function (err, row) {
                 row = row[0];
@@ -107,14 +158,10 @@ module.exports = {
                                 .addFields(
                                     { name: 'Description:', value: row.description, inline: true },
                                     { name: '\u200B', value: '\u200B' },
-                                    { name: 'When?', value: '<t:'+row.timestamp+':R>', inline: true },
-                                    { name: 'Job-Post Message', value: 'https://discord.com/channels/server/channel/msgid', inline: true },
-                                    { name: 'Announcement Message', value: 'Not sent yet. Use /pusblish', inline: true },
-                                    { name: '\u200B', value: '\u200B' },
                                 )
                                 .addFields(
                                     { name: 'Employees', value: employees, inline: true },
-                                    { name: 'Participants', value: guests, inline: true },
+                                    { name: guests.title, value: guests.guests, inline: true },
                                 )
                                 .setTimestamp()
                                 .setFooter({ text: 'This message updates automatically.  Last update' });
