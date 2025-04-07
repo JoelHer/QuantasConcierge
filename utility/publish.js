@@ -2,6 +2,7 @@ const { EmbedBuilder, PermissionsBitField, ActionRowBuilder, ButtonComponent, Bu
 const { updateManagementMessage } = require('./jobpost-reaction');
 const { getSetting } = require('./dbHelper');
 const startsWithVowel = str => /^[aeiou]/i.test(str);
+const { scheduleEvent } = require('./eventScheduler');
 
 async function createChannelWithUserAndRole(guild, channelName, userId, roleId) {
     const everyoneRole = guild.roles.everyone; // '@everyone' role
