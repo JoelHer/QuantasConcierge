@@ -4,6 +4,7 @@ const { getSetting, setSetting, getIdByGuildId } = require('../../utility/dbHelp
 const { renderPublish, renderEventInfo, addPublishMessageComponentsCollector, updatePublicAnnoucementMessage } = require('../../utility/publish');
 const { updateManagementMessage } = require('../../utility/jobpost-reaction');
 const { checkPermission } = require('../../utility/checkpermission');
+const { scheduleEvent } = require('../../utility/eventScheduler');
 // this is the query that will be used to get the available seats and the pricing for the event
 let tickedAndSeatsQuery = `
     -- First part: If records exist in eventguestrole for the event, get available seats.
@@ -402,6 +403,7 @@ async function handleButtonInteraction(interaction, originalMessage) {
                                                         const messagetosend = await renderEventInfo(db, interaction, event_uuid);
                                                         const lobbyMessage = await lobbyChannel.send(messagetosend);
                                                         await dbQuery(`INSERT INTO announcements (type, eventuuid, guildid, messageid, channelid) VALUES (?,?,?,?,?);`, ["PUBLIC_EVENT_INFO",event_uuid,interaction.guild.id,lobbyMessage.id,lobbyChannel.id]);
+                                                        scheduleEvent(db, _events[0]);
                                                     } catch (err) {
                                                         console.error("Error while posting info message: ",err);
                                                     }
@@ -410,6 +412,7 @@ async function handleButtonInteraction(interaction, originalMessage) {
                                         })
                                         
                                         await dbQuery(`INSERT INTO announcements (type, eventuuid, guildid, messageid, channelid) VALUES (?,?,?,?,?);`, ["PUBLIC_EVENT",event_uuid,interaction.guild.id,publicannounce.id,selectedChannel.id]);
+                                        scheduleEvent(db, _events[0]);
                                     })
                                 }
                             })
