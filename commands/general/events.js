@@ -77,13 +77,12 @@ module.exports = {
 		.setName('events')
 		.setDescription('List all events'),
 	async execute(interaction) {
-		await interaction.deferReply({ephemeral: true});
+        await interaction.deferReply({ephemeral: true});
         const timestamp = Math.floor(Date.now() / 1000);
         db.all(`SELECT * FROM events WHERE timestamp > ?;`, [timestamp], async (err, rows) => {
             await interaction.editReply(await renderEvents(interaction, rows));
-            
             const message = await interaction.fetchReply();
             createCollector(message, interaction);
         })
-	},
+    }
 };
