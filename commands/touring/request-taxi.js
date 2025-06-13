@@ -1,4 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
+const { handleTouringCommand } = require('./touring-helper');
 
 module.exports = {
 	data: new SlashCommandBuilder()
@@ -9,6 +10,6 @@ module.exports = {
                 .setDescription('Where are you currently?')
                 .setRequired(true)),
 	async execute(interaction) {
-		await interaction.reply('Not implemented.');
+		await handleTouringCommand(interaction);
 	},
 };

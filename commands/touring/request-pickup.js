@@ -1,27 +1,36 @@
 const { SlashCommandBuilder } = require('discord.js');
+const { handleTouringCommand } = require('./touring-helper');
+const StarCitizenLocation = require('../../utility/data/location');
+const locationData = new StarCitizenLocation();
 
 module.exports = {
 	data: new SlashCommandBuilder()
 		.setName('request-pickup')
-		.setDescription('Request a pickup if you are stranded.')
+		.setDescription('Request a pickup if you are stranded. Don\'t mention the location in notes')
         .addStringOption(option =>
             option.setName('situation')
                 .setDescription('What is the current situation you are in?')
                 .setRequired(true)
                 .addChoices(
-                    { name: 'Stranded but safe', value: 's_safe' },
-                    { name: 'Stranded but in danger', value: 's_danger' },
-                    { name: 'Stranded in hostile area ', value: 's_hostile' },
-                    { name: 'Other (please mention it in the notes option)', value: 'other' },
+                    { name: 'Alive / Healthy', value: 's_healthy' },
+                    { name: 'Incapacitated', value: 's_dead' },
+                    { name: 'Stuck/Bugged (Explain in notes)', value: 's_stuck' },
+                    { name: 'Other (mention in the notes option)', value: 's_other' },
                 ))
         .addStringOption(option =>
-            option.setName('location')
-                .setDescription('Where are you?')
-                .setRequired(true))
+            option.setName('threat-level')
+                .setDescription('How dangerous is your situation?')
+                .setRequired(true)
+                .addChoices(
+                    { name: 'PVP', value: 't_pvp' },
+                    { name: 'PVE', value: 't_pve' },
+                    { name: 'No threat', value: 't_none' },
+                    { name: 'Unknown', value: 't_unknown' },
+                ))
         .addStringOption(option =>
             option.setName('notes')
-                .setDescription('Is there something you want to tell us?')),
+                .setDescription('Additional information?')),
 	async execute(interaction) {
-		await interaction.reply('Not implemented.');
+		await handleTouringCommand(interaction);
 	},
 };
