@@ -4,11 +4,13 @@
 // Import getLocationSelection from the new file
 const { getLocationSelection } = require('./location-selector');
 
+const { setupTaxiRequestCollector } = require('./taxiHelpers/collectors');
+
 const StarCitizenLocation = require('../../utility/data/location'); // Keep this as location-selector.js needs it
 const locationData = new StarCitizenLocation; // Keep this as location-selector.js needs it
 
 // Only import what's needed for the main handler now
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField  } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField, ComponentType } = require('discord.js');
 
 const { getSetting } = require('../../utility/dbHelper');
 const { db } = require('../../bot');
@@ -220,6 +222,52 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
                         components: [],
                         ephemeral: true
                     });
+
+                    const requestEmbed = new EmbedBuilder()
+                        .setTitle('Taxi Request')
+                        .setDescription(`A new taxi request has been created by <@${interaction.user.id}>.\n\n**Pickup:** ${finalPickupString}\n**Destination:** ${finalDestinationString}\n\n**Notes:**\n${notes}\nA staff member still needs to accept this request within 5 minutes.`)
+                        .setColor(0xFFFF00)
+                        .setFooter({ text: `Request ID: ${requestUUID}` });
+                    
+                    const actionRow = new ActionRowBuilder()
+                        .addComponents(
+                            new ButtonBuilder()
+                                .setCustomId(`accept.taxi.${requestUUID}`)
+                                .setLabel('Accept Request')
+                                .setStyle(ButtonStyle.Success)
+                                .setEmoji('✅'),
+                            new ButtonBuilder()
+                                .setCustomId(`decline.taxi.${requestUUID}`)
+                                .setLabel('Decline Request')
+                                .setStyle(ButtonStyle.Danger)
+                                .setEmoji('❌')
+                        );
+                
+
+                    textChannel.send({
+                        embeds: [requestEmbed],
+                        content: `<@&${taxiRoleId}> <@${interaction.user.id}>`, 
+                        components: [actionRow],
+                    }).then(sentMessage => {
+                        setupTaxiRequestCollector(db, interaction.client, sentMessage.id, voiceChannel.id, interaction.user.id, sentMessage.channel, taxiRoleId);
+                        db.run(
+                            'INSERT INTO taxi_messages (type, taxiuuid, guildid, messageid, channelid) VALUES ("TAXI_ACCEPT_STAFF_REQUEST", ?, ?, ?, ?)',
+                            [
+                                requestUUID,
+                                interaction.guild.id,
+                                sentMessage.id,
+                                sentMessage.channel.id
+                            ],
+                            (err) => {
+                                if (err) {
+                                    console.error('Error inserting announcement into database:', err);
+                                } else {
+                                    console.log('Taxi Request inserted into database successfully.');
+                                }
+                            }
+                        );
+                        
+                    });
                 }
             );
 
@@ -265,4 +313,5 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
     }
 }
 
-module.exports = { handleTouringCommand };
+
+module.exports = { handleTouringCommand, setupTaxiRequestCollector };

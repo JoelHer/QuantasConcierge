@@ -9,6 +9,7 @@ const { settingsTemplate } = require('./commands/general/settings.json');
 const { updateManagementMessage } = require('./utility/jobpost-reaction');
 const { addPublishMessageComponentsCollector } = require('./utility/publish');
 const { loadAndScheduleEvents } = require('./utility/eventScheduler');
+const { setupTaxiRequestCollector, setupTaxiRequestPersonaCollector } = require('./commands/touring/taxiHelpers/collectors');	
 
 if (!verifySettingsJson(settingsTemplate)){
 	console.log("Invalid settings.json file.");
@@ -81,6 +82,18 @@ db.run(`CREATE TABLE IF NOT EXISTS taxi_requests (
     destination_moon TEXT,                            -- Optional
 	FOREIGN KEY(guild_id) REFERENCES guilds(id)
 );`);
+
+db.run(`
+	CREATE TABLE IF NOT EXISTS taxi_messages (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL,
+	taxiuuid TEXT NOT NULL,
+	guildid TEXT NOT NULL,
+	messageid TEXT NOT NULL,
+	channelid TEXT NOT NULL,
+	FOREIGN KEY(taxiuuid) REFERENCES taxi_requests(request_id),
+	FOREIGN KEY(guildid) REFERENCES guilds(id)
+);`)
 
 db.run(`
 	CREATE TABLE IF NOT EXISTS "guestSignups" (
@@ -259,6 +272,7 @@ client.login(token).then(async () => {
 	loadAndScheduleEvents(db);
 
     // Get all announcements that are in the future
+	// The next two db queries are used to set up the bot for handling interactions with existing messages
     const timestamp = Math.floor(Date.now() / 1000);
     db.all(`SELECT * FROM events JOIN announcements ON events.uuid = announcements.eventuuid WHERE timestamp > ?;`, [timestamp], async (err, rows) => {
         if (err) {
@@ -290,6 +304,58 @@ client.login(token).then(async () => {
             console.error(err);
         }
     });
+
+	db.all(`SELECT * FROM taxi_requests JOIN taxi_messages ON taxi_messages.taxiuuid = taxi_requests.request_id;`, [], async (err, rows) => {
+		if (err) {
+			console.error(err.message);
+			return;
+		}
+
+		try {
+			if (!rows || rows.length === 0) return;
+
+			for (const row of rows) {
+				try {
+					const messageId = row.messageid;
+					const channelId = row.channelid;
+					const voiceChannelId = row.assigned_voice_channel;
+					const userId = row.user_id;
+					let channel
+					try {
+						channel = await client.channels.fetch(channelId);
+					} catch (err) {
+						if (err.code === 10003) { // Channel not found
+							console.log(`Channel ${channelId} not found. Deleting...`);
+							db.run(`DELETE FROM taxi_messages WHERE messageid = ?`, [messageId], (err) => {
+								if (err) {
+									console.error(`Failed to delete taxi message for channel ${channelId}:`, err.message);
+								} else {
+									console.log(`Deleted taxi message for channel ${channelId}`);
+								}
+							});
+							continue;
+						} else {
+							console.error(`Failed to fetch channel ${channelId}:`, err.name);
+							continue;
+						}
+					}
+					const taxiRoleId = (await getSetting(db, row.guildid, 'taxi_role')).replace(/<@&(\d+)>/, '$1');
+					const type = row.type;
+
+					if (type == 'TAXI_ACCEPT_STAFF_REQUEST') {
+						setupTaxiRequestCollector(db, client, messageId, voiceChannelId, userId, channel, taxiRoleId)
+					}
+					if (type == 'TAXI_ACCEPT_PERSONA_REQUEST') {
+						setupTaxiRequestPersonaCollector(db, client, messageId, voiceChannelId, userId, channel, taxiRoleId, true);
+					}
+				} catch (err) {
+					console.error("error in bot.js taxi_messages: ", err);
+				}
+			}
+		} catch (err) {
+			console.error(err);
+		}
+	});
 });
 
 module.exports.client = client;
