@@ -23,10 +23,10 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
             if (selection === `accept.taxi`) {
                 const acceptEmbed = new EmbedBuilder()
                     .setTitle('Waiting for the user\'s final confirmation... ⏳')
-                    .setDescription(`Your taxi request has been accepted by <@${i.user.id}>. Now it's up to <@${taxiRequestUserId}> to confirm the ride.`)
+                    .setDescription(`Your taxi request has been accepted by <@${i.user.id}>. Now it's up to <@${taxiRequestUserId}> to confirm the ride.\n\nPlease confirm your taxi request one last time by clicking one of the buttons below:`)
                     .setColor(0x00FF00);
-                await i.message.edit({ embeds: [acceptEmbed], components: [] });
-
+                await i.message.edit({ components: [] });
+                
                 const actionRow = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
@@ -39,9 +39,9 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
                         .setLabel('Decline Request')
                         .setStyle(ButtonStyle.Danger)
                         .setEmoji('❌')
-                                        );
+                );
 
-                const resp = await i.message.channel.send({ components: [actionRow], withResponse: true, content: `<@${taxiRequestUserId}> Please confirm your taxi request one last time by clicking one of the buttons below:` });
+                const resp = await i.message.channel.send({ embeds: [acceptEmbed], components: [actionRow], withResponse: true, content: `<@${taxiRequestUserId}>` });
                 collector.stop(); 
                 _db.run(
                     'DELETE FROM taxi_messages WHERE taxiuuid = ? AND guildid = ? AND messageid = ?',
@@ -69,7 +69,7 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
                 await i.message.edit({ embeds: [declineEmbed], components: [], content: `` });
                 await i.message.channel.send(`<@${taxiRequestUserId}> Your request has been declined.`);
                 collector.stop(); 
-                db.run(
+                _db.run(
                     'DELETE FROM taxi_messages WHERE taxiuuid = ? AND guildid = ? AND messageid = ?',
                     [
                         i.customId.split('.')[2], // Extract the request UUID from the custom ID
@@ -129,7 +129,7 @@ function setupTaxiRequestPersonaCollector(_db, client, sentMessageId, voiceChann
                 await i.message.edit({ embeds: [declineEmbed], components: [], content: `` });
                 await i.message.channel.send(`<@${taxiRequestUserId}> Your request has been declined.`);
                 collector.stop(); 
-                db.run(
+                _db.run(
                     'DELETE FROM taxi_messages WHERE taxiuuid = ? AND guildid = ? AND messageid = ?',
                     [
                         i.customId.split('.')[2], // Extract the request UUID from the custom ID
