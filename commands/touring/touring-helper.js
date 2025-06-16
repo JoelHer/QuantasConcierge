@@ -8,15 +8,33 @@ const StarCitizenLocation = require('../../utility/data/location'); // Keep this
 const locationData = new StarCitizenLocation; // Keep this as location-selector.js needs it
 
 // Only import what's needed for the main handler now
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
 
+const { getSetting } = require('../../utility/dbHelper');
+const { db } = require('../../bot');
 
-// The capitalizeFirstLetter and buildSelectMenuMessage functions are now in location-selector.js
-// They are used internally by getLocationSelection, so no longer needed here.
+const { v4: uuidv4 } = require('uuid');
 
-
-async function handleTouringCommand(interaction) {
+async function handleTouringCommand(interaction, taxiRequestCategory) {
     await interaction.deferReply({ ephemeral: true });
+    const situation = interaction.options.getString('situation');
+    const threatLevel = interaction.options.getString('threat-level');
+    const notes = interaction.options.getString('notes') || 'No additional notes.';
+
+    taxiChannelCategory = await getSetting(db, interaction.guild.id, 'taxi_category');
+    if (!taxiChannelCategory) {
+        interaction.editReply({
+            embeds: [
+                new EmbedBuilder()
+                    .setTitle('Taxi Service Unavailable')
+                    .setDescription('The taxi service is currently disabled on this server. If you think this is an error, please contact an admin. Please try again later.')
+                    .setColor(0xFF0000)
+            ],
+            ephemeral: true
+        });
+        return;
+    }
+
 
     let pickupLocation = {};
     let destinationLocation = {};
@@ -26,7 +44,6 @@ async function handleTouringCommand(interaction) {
         console.log('Starting pickup location selection...');
         // Call the imported function
         pickupLocation = await getLocationSelection(interaction, 'pickup');
-        console.log('Pickup location selected:', pickupLocation);
 
         const pickupConfirmationEmbed = new EmbedBuilder()
             .setTitle('Pickup Location Confirmed!')
@@ -42,10 +59,8 @@ async function handleTouringCommand(interaction) {
         await new Promise(resolve => setTimeout(resolve, 1000));
 
         // --- Get Destination Location ---
-        console.log('Starting destination location selection...');
         // Call the imported function again for destination
         destinationLocation = await getLocationSelection(interaction, 'destination');
-        console.log('Destination location selected:', destinationLocation);
 
         // --- Final Confirmation with Agree/Decline Buttons ---
         let finalPickupString = `**${pickupLocation.selectedSystemName}** > **${pickupLocation.selectedPlanetName}`;
@@ -95,16 +110,99 @@ async function handleTouringCommand(interaction) {
         await buttonResponse.deferUpdate();
 
         if (buttonResponse.customId === 'confirm.taxi.agree') {
-            const successEmbed = new EmbedBuilder()
-                .setTitle('Taxi Request Created! 🚀')
-                .setDescription(`Your pilot will be in touch soon.\n\n**Pickup:** ${finalPickupString}\n**Destination:** ${finalDestinationString}`)
-                .setColor(0x00FF00);
+            const requestUUID = uuidv4();
+            let textChannel, voiceChannel;
 
+
+            try {
+                textChannel = await interaction.guild.channels.create({
+                    name: 'taxi-' + requestUUID,
+                    type: ChannelType.GuildText,
+                    parent: taxiChannelCategory,
+                    reason: 'Taxi request for ' + interaction.user.username
+                });
+
+                voiceChannel = await interaction.guild.channels.create({
+                    name: 'taxi-' + requestUUID,
+                    type: ChannelType.GuildVoice,
+                    parent: taxiChannelCategory,
+                    reason: 'Taxi request for ' + interaction.user.username
+                });
+
+                console.log(`Created channels: ${textChannel.name} and ${voiceChannel.name} under category ID ${taxiChannelCategory}`);
+            } catch (err) {
+                console.error('Error creating channel:', err);
+                const errorEmbed = new EmbedBuilder()
+                    .setTitle('Channel Creation Error ⚠️')
+                    .setDescription('An error occurred while creating the channels for your taxi request. Please try again later, your request has been canceled.')
+                    .setColor(0xFF0000);
+                await interaction.editReply({
+                    embeds: [errorEmbed],
+                    components: [],
+                    ephemeral: true
+                });
+                return;
+            }
+
+
+            const setupEmbed = new EmbedBuilder()
+                .setTitle('Hold Tight! 🚖')
+                .setDescription(`Just one second, we are setting up your taxi request...\n\n**Pickup:** ${finalPickupString}\n**Destination:** ${finalDestinationString}\nYour request ID is \`${requestUUID}\`. Please keep this for reference.`)
+                .setColor(0x00FF00);
             await interaction.editReply({
-                embeds: [successEmbed],
+                embeds: [setupEmbed],
                 components: [],
                 ephemeral: true
             });
+            
+            console.log('Setting up taxi request.\nFROM:', pickupLocation, '\nTO:', destinationLocation, '\nRequest ID:', requestUUID);
+
+            db.run(
+                'INSERT INTO taxi_requests (request_id, guild_id, user_id, taxi_request_category, threat_level, situation, notes, assigned_text_channel, assigned_voice_channel, pickup_system, pickup_planet, pickup_moon, destination_system, destination_planet, destination_moon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                [
+                    requestUUID,
+                    interaction.guild.id,
+                    interaction.user.id,
+                    taxiRequestCategory,
+                    threatLevel,
+                    situation,
+                    notes,
+                    textChannel.id,
+                    voiceChannel.id,
+                    pickupLocation.selectedSystemName,
+                    pickupLocation.selectedPlanetName,
+                    pickupLocation.selectedMoonName || null,
+                    destinationLocation.selectedSystemName,
+                    destinationLocation.selectedPlanetName,
+                    destinationLocation.selectedMoonName || null
+                ],
+                (error, results) => {
+                    if (error) {
+                        console.error('Error inserting taxi request into database:', error);
+                        const errorEmbed = new EmbedBuilder()
+                            .setTitle('Database Error ⚠️')
+                            .setDescription('An error occurred while processing your taxi request. Please try again later.')
+                            .setColor(0xFF0000);
+                        interaction.editReply({
+                            embeds: [errorEmbed],
+                            components: [],
+                            ephemeral: true
+                        });
+                        return;
+                    }
+                    const successEmbed = new EmbedBuilder()
+                        .setTitle('Taxi Request Created! 🚀')
+                        .setDescription(`Your taxi request has been successfully created! Your pilot will be with you shortly.\n\n**Pickup:** ${finalPickupString}\n**Destination:** ${finalDestinationString}\nVoice channel: <#${voiceChannel.id}>\nText channel: <#${textChannel.id}>\n\nYour request ID is \`${requestUUID}\`. Please keep this for reference.`)
+                        .setColor(0x00FF00);
+        
+                    interaction.editReply({
+                        embeds: [successEmbed],
+                        components: [],
+                        ephemeral: true
+                    });
+                }
+            );
+
         } else if (buttonResponse.customId === 'confirm.taxi.decline') {
             const cancelledEmbed = new EmbedBuilder()
                 .setTitle('Taxi Request Cancelled 🛑')

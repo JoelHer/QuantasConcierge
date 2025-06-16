@@ -31,6 +31,6 @@ module.exports = {
             option.setName('notes')
                 .setDescription('Additional information?')),
 	async execute(interaction) {
-		await handleTouringCommand(interaction);
+		await handleTouringCommand(interaction, "request-pickup");
 	},
 };

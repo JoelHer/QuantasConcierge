@@ -63,6 +63,25 @@ db.run(`CREATE TABLE IF NOT EXISTS events (
 	FOREIGN KEY(guildid) REFERENCES guilds(id)
 )`);
 
+db.run(`CREATE TABLE IF NOT EXISTS taxi_requests (
+    request_id TEXT PRIMARY KEY,                      -- UUID, required
+    guild_id TEXT NOT NULL,                           -- Discord server ID
+    user_id TEXT NOT NULL,                            -- Requesting user's ID
+    taxi_request_category TEXT NOT NULL,              -- e.g., "request-pickup"
+    threat_level TEXT NOT NULL,                       -- t_pvp / t_pve / etc.
+    situation TEXT NOT NULL,                          -- s_healthy / s_dead / etc.
+    notes TEXT,                                       -- Optional
+    assigned_text_channel TEXT NOT NULL,              -- Channel ID
+    assigned_voice_channel TEXT NOT NULL,             -- Channel ID
+    pickup_system TEXT NOT NULL,
+    pickup_planet TEXT NOT NULL,
+    pickup_moon TEXT,                                 -- Optional
+    destination_system TEXT NOT NULL,
+    destination_planet TEXT NOT NULL,
+    destination_moon TEXT,                            -- Optional
+	FOREIGN KEY(guild_id) REFERENCES guilds(id)
+);`);
+
 db.run(`
 	CREATE TABLE IF NOT EXISTS "guestSignups" (
 		"serveId"	INTEGER NOT NULL UNIQUE,
