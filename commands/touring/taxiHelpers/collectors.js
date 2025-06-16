@@ -110,6 +110,8 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
             requestuuid = sentMessage
             sentMessage.edit({ embeds: [endEmbed], components: [actionRow] });
             
+            sentMessage.channel.send(`<@${taxiRequestUserId}> Your request has not been answered in 5 minutes. You can try again later.`);
+
             _db.run('INSERT INTO taxi_messages (type, taxiuuid, guildid, messageid, channelid) VALUES ("TAXI_DELETE", ?, ?, ?, ?)', 
                 [
                     sentMessage.channel.name.replace(/^taxi-/, ''), // Extract the request UUID from the custom ID
@@ -205,6 +207,8 @@ function setupTaxiRequestPersonaCollector(_db, client, sentMessageId, voiceChann
                         .setEmoji('🗑️')
                 );
             sentMessage.edit({ embeds: [endEmbed], components: [actionRow], content: `<@${taxiRequestUserId}>` });
+
+            sentMessage.channel.send(`<@${taxiRequestUserId}> Your request has not been answered in 5 minutes. You can try again later.`);
 
             _db.run('INSERT INTO taxi_messages (type, taxiuuid, guildid, messageid, channelid) VALUES ("TAXI_DELETE", ?, ?, ?, ?)', 
                 [
