@@ -9,7 +9,7 @@ const { settingsTemplate } = require('./commands/general/settings.json');
 const { updateManagementMessage } = require('./utility/jobpost-reaction');
 const { addPublishMessageComponentsCollector } = require('./utility/publish');
 const { loadAndScheduleEvents } = require('./utility/eventScheduler');
-const { setupTaxiRequestCollector, setupTaxiRequestPersonaCollector } = require('./commands/touring/taxiHelpers/collectors');	
+const { setupTaxiRequestCollector, setupTaxiRequestPersonaCollector, setupTaxiDeletionCollector} = require('./commands/touring/taxiHelpers/collectors');	
 
 if (!verifySettingsJson(settingsTemplate)){
 	console.log("Invalid settings.json file.");
@@ -347,6 +347,9 @@ client.login(token).then(async () => {
 					}
 					if (type == 'TAXI_ACCEPT_PERSONA_REQUEST') {
 						setupTaxiRequestPersonaCollector(db, client, messageId, voiceChannelId, userId, channel, taxiRoleId, true);
+					}
+					if (type == 'TAXI_DELETE') {
+						setupTaxiDeletionCollector(db, client, messageId, voiceChannelId, userId, channel, taxiRoleId);
 					}
 				} catch (err) {
 					console.error("error in bot.js taxi_messages: ", err);
