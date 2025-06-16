@@ -123,9 +123,29 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
         const buttonFilter = i => ['confirm.taxi.agree', 'confirm.taxi.decline'].includes(i.customId) && i.user.id === interaction.user.id;
         const buttonResponse = await interaction.channel.awaitMessageComponent({ filter: buttonFilter, time: 120000 });
 
-        await buttonResponse.deferUpdate();
-
         if (buttonResponse.customId === 'confirm.taxi.agree') {
+            const agreeButton = new ButtonBuilder()
+                .setCustomId('confirm.taxi.agree')
+                .setLabel('Agree & Request Taxi')
+                .setStyle(ButtonStyle.Success)
+                .setDisabled(true) // Disable the decline button after agreeing
+                .setEmoji('✅');
+
+            const declineButton = new ButtonBuilder()
+                .setCustomId('confirm.taxi.decline')
+                .setLabel('Cancel Request')
+                .setStyle(ButtonStyle.Danger)
+                .setDisabled(true) // Disable the decline button after agreeing
+                .setEmoji('✖️');
+
+
+            const buttonRow = new ActionRowBuilder()
+                .addComponents(agreeButton, declineButton);
+
+            await interaction.editReply({
+                components: [buttonRow]
+            });
+
             const requestUUID = uuidv4();
             let textChannel, voiceChannel;
 
