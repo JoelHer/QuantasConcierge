@@ -29,7 +29,7 @@ async function parseRole(inputString, guild) {
         return role ? role.name : `Unknown Role (${roleId})`;
     }
   
-    return inputString;
+    return "❌: "+inputString;
 }
 
 async function parseEmojirole(inputString, guild) {
@@ -45,8 +45,24 @@ async function parseChannel(inputString, guild) {
         const channel = guild.channels.cache.get(channelId);
         return channel ? "#"+channel.name : `Unknown Channel (${channelId})`;
     }
-    return inputString;
+    return "❌: "+inputString;
 }
+
+async function parseCategory(inputString, guild) {
+    const categoryMatch = inputString.match(/\b\d{17,19}\b/);
+    if (categoryMatch) {
+        const categoryId = categoryMatch[0];
+        const category = guild.channels.cache.get(categoryId);
+
+        if (category && category.type === 4) { // 4 = Category in Discord.js v14+
+            return "\"" + category.name + "\" Category";
+        } else {
+            return `Unknown Category (${categoryId})`;
+        }
+    }
+    return "❌: "+inputString;
+}
+
 
 async function parsesetting(_value, _datatype, guild) {
     if (!_value) return;
@@ -66,6 +82,9 @@ async function parsesetting(_value, _datatype, guild) {
         return _result
     } else if (_datatype === 'channel') {
         var _result = await parseChannel(_value, guild)
+        return _result;
+    } else if (_datatype === 'category') {
+        var _result = await parseCategory(_value, guild)
         return _result;
     } else if (_datatype.startsWith('array[')) {
         const _arrtype = _datatype.substring(6, _datatype.length - 1);
@@ -186,7 +205,7 @@ async function handleButtonInteraction(interaction) {
             }
         }
 
-        var informDataMsg = await interaction.reply({ content: `Current value for ${key} is "${currentValue}". Please provide a new value in form of the datatype ${datatype}.`, ephemeral: true });
+        var informDataMsg = await interaction.reply({ content: `Current value for ${key} is "${currentValue}". Please provide a new value in form of the datatype "${datatype}".`, ephemeral: true });
 
         const filter = response => response.author.id === interaction.user.id; 
 
@@ -236,6 +255,9 @@ function parseDatatypes (datatype, data) {
             res = data;
             break;
         case 'channel':
+            res = data;
+            break;
+        case 'category':
             res = data;
             break;
 
