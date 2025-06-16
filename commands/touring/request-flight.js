@@ -2,9 +2,9 @@ const { SlashCommandBuilder } = require('discord.js');
 const { handleTouringCommand } = require('./touring-helper');
 
 module.exports = {
-	data: new SlashCommandBuilder()
-		.setName('request-taxi')
-		.setDescription('Request a taxi. Don\'t mention the location in notes')
+    data: new SlashCommandBuilder()
+        .setName('request-flight')
+        .setDescription('Request a taxi. Don\'t mention the location in notes')
         .addStringOption(option =>
             option.setName('situation')
                 .setDescription('What is the current situation you are in?')
@@ -28,7 +28,7 @@ module.exports = {
         .addStringOption(option =>
             option.setName('notes')
                 .setDescription('Additional information?')),
-	async execute(interaction) {
-		await handleTouringCommand(interaction, "request-taxi");
-	},
+    async execute(interaction) {
+        await handleTouringCommand(interaction, "request-flight");
+    },
 };
