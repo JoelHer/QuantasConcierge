@@ -26,6 +26,10 @@ module.exports = {
                     { name: 'Unknown', value: 't_unknown' },
                 ))
         .addStringOption(option =>
+			option.setName('rsi-handle')
+				.setDescription('Your in-game name, so we can add you')
+				.setRequired(true))
+        .addStringOption(option =>
             option.setName('notes')
                 .setDescription('Additional information?')),
     async execute(interaction) {

@@ -29,7 +29,7 @@ async function parseRole(inputString, guild) {
         return role ? role.name : `Unknown Role (${roleId})`;
     }
   
-    return "❌: "+inputString;
+    return "✖️: "+inputString;
 }
 
 async function parseEmojirole(inputString, guild) {
@@ -45,7 +45,7 @@ async function parseChannel(inputString, guild) {
         const channel = guild.channels.cache.get(channelId);
         return channel ? "#"+channel.name : `Unknown Channel (${channelId})`;
     }
-    return "❌: "+inputString;
+    return "✖️: "+inputString;
 }
 
 async function parseCategory(inputString, guild) {
@@ -60,7 +60,7 @@ async function parseCategory(inputString, guild) {
             return `Unknown Category (${categoryId})`;
         }
     }
-    return "❌: "+inputString;
+    return "✖️: "+inputString;
 }
 
 

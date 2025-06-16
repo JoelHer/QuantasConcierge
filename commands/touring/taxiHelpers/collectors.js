@@ -38,7 +38,7 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
                         .setCustomId(`decline.taxi.${requestUUID}`)
                         .setLabel('Decline Request')
                         .setStyle(ButtonStyle.Danger)
-                        .setEmoji('❌')
+                        .setEmoji('✖️')
                 );
 
                 const resp = await i.message.channel.send({ embeds: [acceptEmbed], components: [actionRow], withResponse: true, content: `<@${taxiRequestUserId}>` });
@@ -63,7 +63,7 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
                 setupTaxiRequestPersonaCollector(_db, client, resp.id, voiceChannelId, taxiRequestUserId, channel, taxiRoleId);
             } else if (selection === `decline.taxi`) {
                 const declineEmbed = new EmbedBuilder()
-                    .setTitle('Taxi Request Declined ❌')
+                    .setTitle('Taxi Request Declined ✖️')
                     .setDescription(`Your taxi request has been declined by <@${i.user.id}>. You can try again later.`)
                     .setColor(0xFF0000);
                 await i.message.edit({ embeds: [declineEmbed], components: [], content: `` });
@@ -123,7 +123,7 @@ function setupTaxiRequestPersonaCollector(_db, client, sentMessageId, voiceChann
                 );
             } else if (selection === `decline.taxi`) {
                 const declineEmbed = new EmbedBuilder()
-                    .setTitle('Taxi Request Declined ❌')
+                    .setTitle('Taxi Request Declined ✖️')
                     .setDescription(`Your taxi request has been declined by <@${i.user.id}>. You can try again later.`)
                     .setColor(0xFF0000);
                 await i.message.edit({ embeds: [declineEmbed], components: [], content: `` });

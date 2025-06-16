@@ -21,6 +21,7 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
     await interaction.deferReply({ ephemeral: true });
     const situation = interaction.options.getString('situation');
     const threatLevel = interaction.options.getString('threat-level');
+    const rsiHandle = interaction.options.getString('rsi-handle');
     const notes = interaction.options.getString('notes') || 'No additional notes.';
 
     taxiChannelCategory = await getSetting(db, interaction.guild.id, 'taxi_category');
@@ -96,7 +97,7 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
             .setCustomId('confirm.taxi.decline')
             .setLabel('Cancel Request')
             .setStyle(ButtonStyle.Danger)
-            .setEmoji('❌');
+            .setEmoji('✖️');
 
         const buttonRow = new ActionRowBuilder()
             .addComponents(agreeButton, declineButton);
@@ -225,7 +226,7 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
 
                     const requestEmbed = new EmbedBuilder()
                         .setTitle('Taxi Request')
-                        .setDescription(`A new taxi request has been created by <@${interaction.user.id}>.\n\n**Pickup:** ${finalPickupString}\n**Destination:** ${finalDestinationString}\n\n**Situation:**\n${situation.substring(2).toUpperCase()}\n\n**Threat level:**\n${threatLevel.substring(2).toUpperCase()}\n\n**Notes:**\n${notes}\n\nA staff member still needs to accept this request within 5 minutes.`)
+                        .setDescription(`A new taxi request has been created by <@${interaction.user.id}>.\n*RSI-Handle: ${rsiHandle}*\n\n**Pickup:** ${finalPickupString}\n**Destination:** ${finalDestinationString}\n\n**Situation:**\n${situation.substring(2).toUpperCase()}\n\n**Threat level:**\n${threatLevel.substring(2).toUpperCase()}\n\n**Notes:**\n${notes}\n\nA staff member still needs to accept this request within 5 minutes.`)
                         .setColor(0xFFFF00)
                         .setFooter({ text: `Request ID: ${requestUUID}` });
                     
@@ -240,7 +241,7 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
                                 .setCustomId(`decline.taxi.${requestUUID}`)
                                 .setLabel('Decline Request')
                                 .setStyle(ButtonStyle.Danger)
-                                .setEmoji('❌')
+                                .setEmoji('✖️')
                         );
                 
 
