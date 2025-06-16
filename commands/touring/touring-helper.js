@@ -24,6 +24,18 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
     const rsiHandle = interaction.options.getString('rsi-handle');
     const notes = interaction.options.getString('notes') || 'No additional notes.';
 
+    if (situation === 's_dead') {
+        const deadEmbed = new EmbedBuilder()
+            .setTitle('Please contact MedRunners')
+            .setDescription('Sorry, but we currently dont\'t provide rescue services. Please contact the MedRunners for assistance. You can directly contact them [here](http://portal.medrunner.space/).')
+            .setColor(0xFF0000);
+        await interaction.editReply({
+            embeds: [deadEmbed],
+            ephemeral: true
+        });
+        return;
+    }
+
     taxiChannelCategory = await getSetting(db, interaction.guild.id, 'taxi_category');
     taxiRoleId = await getSetting(db, interaction.guild.id, 'taxi_role');
     if (!taxiChannelCategory || !taxiRoleId) {
