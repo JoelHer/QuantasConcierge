@@ -185,7 +185,7 @@ async function renderPage(interaction, category, page=0) {
 }
 
 async function handleButtonInteraction(interaction) {
-    if (interaction.customId === 'general' || interaction.customId === 'management' || interaction.customId === 'role' || interaction.customId === 'back') {
+    if (interaction.customId === 'general' || interaction.customId === 'management' || interaction.customId === 'role' || interaction.customId === 'taxi' || interaction.customId === 'back') { // MAKE SURE TO ADD UR NEW CATEGORY HERE
         await interaction.update(await renderPage(interaction, interaction.customId));
     } else if (interaction.customId.startsWith('page')) {
         const page = parseInt(interaction.customId.split('?')[1].split('=')[1]);

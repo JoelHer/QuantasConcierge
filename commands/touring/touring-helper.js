@@ -8,7 +8,7 @@ const StarCitizenLocation = require('../../utility/data/location'); // Keep this
 const locationData = new StarCitizenLocation; // Keep this as location-selector.js needs it
 
 // Only import what's needed for the main handler now
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType, PermissionsBitField  } = require('discord.js');
 
 const { getSetting } = require('../../utility/dbHelper');
 const { db } = require('../../bot');
@@ -22,7 +22,8 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
     const notes = interaction.options.getString('notes') || 'No additional notes.';
 
     taxiChannelCategory = await getSetting(db, interaction.guild.id, 'taxi_category');
-    if (!taxiChannelCategory) {
+    taxiRoleId = await getSetting(db, interaction.guild.id, 'taxi_role');
+    if (!taxiChannelCategory || !taxiRoleId) {
         interaction.editReply({
             embeds: [
                 new EmbedBuilder()
@@ -113,20 +114,39 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
             const requestUUID = uuidv4();
             let textChannel, voiceChannel;
 
+            taxiRoleId = taxiRoleId.replace(/<@&(\d+)>/, '$1');
+
 
             try {
+                const permissionOverwrites = [
+                    {
+                        id: interaction.guild.roles.everyone, // @everyone role
+                        deny: [PermissionsBitField.Flags.ViewChannel], // Hide channel for everyone by default
+                    },
+                    {
+                        id: interaction.user.id, // User who invoked the command
+                        allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.Connect, PermissionsBitField.Flags.Speak],
+                    },
+                    {
+                        id: taxiRoleId, // Role that should also see the channel
+                        allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.Connect, PermissionsBitField.Flags.Speak],
+                    }
+                ];
+
                 textChannel = await interaction.guild.channels.create({
                     name: 'taxi-' + requestUUID,
                     type: ChannelType.GuildText,
                     parent: taxiChannelCategory,
-                    reason: 'Taxi request for ' + interaction.user.username
+                    reason: 'Taxi request for ' + interaction.user.username,
+                    permissionOverwrites
                 });
 
                 voiceChannel = await interaction.guild.channels.create({
                     name: 'taxi-' + requestUUID,
                     type: ChannelType.GuildVoice,
                     parent: taxiChannelCategory,
-                    reason: 'Taxi request for ' + interaction.user.username
+                    reason: 'Taxi request for ' + interaction.user.username,
+                    permissionOverwrites
                 });
 
                 console.log(`Created channels: ${textChannel.name} and ${voiceChannel.name} under category ID ${taxiChannelCategory}`);

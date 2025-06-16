@@ -28,10 +28,6 @@
                 "boarding_lobby_channel": {
                     "friendlyName": "Boarding Lobby Channel",
                     "dataType": "channel"
-                },
-                "taxi_category": {
-                    "friendlyName": "Category for Taxi text and voice channels",
-                    "dataType": "category"
                 }
             }
         },
@@ -91,6 +87,21 @@
                     "friendlyName": "Bartender Emoji Role",
                     "dataType": "emojirole",
                     "default": "🍾=1304783164094287942"
+                }
+            }
+        },
+        "taxi": {
+            "title": "Taxi Settings",
+            "single": "Taxi",
+            "description": "Settings for the taxi system",
+            "settings": {
+                "taxi_category": {
+                    "friendlyName": "Category for Taxi text and voice channels",
+                    "dataType": "category"
+                },
+                "taxi_role": {
+                    "friendlyName": "Role for the taxi drivers",
+                    "dataType": "role"
                 }
             }
         }
