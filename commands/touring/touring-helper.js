@@ -95,7 +95,7 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
             .setTitle('Confirm Your Taxi Request')
             .setDescription(`Please review your request:\n\n**Pickup:** ${finalPickupString}\n**Destination:** ${finalDestinationString}`)
             .addFields(
-                { name: 'Disclaimer', value: 'By confirming this request, you agree to the terms of service. Our pilots will do their best to fulfill your request promptly, but service availability and travel times may vary based on in-game conditions, server status, and pilot availability. Please be ready at your designated pickup location. In case of unexpected issues, your pilot will contact you.' }
+                { name: 'Disclaimer', value: 'By confirming this request, you agree to the terms of service. Our pilots will do their best to fulfill your request promptly, but service availability and travel times may vary based on in-game conditions, server status, and pilot availability. Please be ready at your designated pickup location. In case of unexpected issues, your pilot will contact you.\n\n**Time disclaimer:**\nPlease be aware, that it can take up to 10 minutes for your request to be confirmed, it also may be cancelled if no employees are available.' }
             )
             .setColor(0xFFA500);
 
