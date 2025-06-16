@@ -225,7 +225,7 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
 
                     const requestEmbed = new EmbedBuilder()
                         .setTitle('Taxi Request')
-                        .setDescription(`A new taxi request has been created by <@${interaction.user.id}>.\n\n**Pickup:** ${finalPickupString}\n**Destination:** ${finalDestinationString}\n\n**Notes:**\n${notes}\nA staff member still needs to accept this request within 5 minutes.`)
+                        .setDescription(`A new taxi request has been created by <@${interaction.user.id}>.\n\n**Pickup:** ${finalPickupString}\n**Destination:** ${finalDestinationString}\n\n**Situation:**\n${situation.substring(2).toUpperCase()}\n\n**Threat level:**\n${threatLevel.substring(2).toUpperCase()}\n\n**Notes:**\n${notes}\n\nA staff member still needs to accept this request within 5 minutes.`)
                         .setColor(0xFFFF00)
                         .setFooter({ text: `Request ID: ${requestUUID}` });
                     
