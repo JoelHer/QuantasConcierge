@@ -6,7 +6,7 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
 
         const collector = sentMessage.createMessageComponentCollector({
             componentType: ComponentType.Button,
-            time: 300_000 // 5 minute
+            time: 600_000 // 10 minutes
         });
 
         console.log(`TAXI_ACCEPT_STAFF_REQUEST set up for message ${sentMessageId} in channel ${channel.id} for user ${taxiRequestUserId}.`);
@@ -131,7 +131,7 @@ function setupTaxiRequestPersonaCollector(_db, client, sentMessageId, voiceChann
         let userHasAnswered = false;
         const collector = sentMessage.createMessageComponentCollector({
             componentType: ComponentType.Button,
-            time:300_000 
+            time: 300_000 
         });
 
         console.log(`TAXI_ACCEPT_PERSONA_REQUEST set up for message ${sentMessageId} in channel ${channel.id} for user ${taxiRequestUserId}.`);
