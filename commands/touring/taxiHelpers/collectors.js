@@ -265,7 +265,7 @@ function setupTaxiDeletionCollector(_db, client, sentMessageId, voiceChannelId, 
                     collector.stop();
                     // delete both the text and voice channel
                     const taxiUUID = i.customId.split('.')[1]; // Extract the request UUID from the custom ID
-                    const voiceChannel = i.guild.channels.cache.get(voiceChannelId)
+                    const voiceChannel = i.guild.channels.fetch(voiceChannelId)
     
                     const guildid = i.guild.id;
                     const messageid = i.message.id;
