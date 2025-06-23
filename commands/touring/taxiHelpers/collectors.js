@@ -1,5 +1,7 @@
 const { EmbedBuilder, ComponentType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ButtonInteraction, ButtonComponent } = require('discord.js');
 
+const { getSetting } = require('../../../utility/dbHelper');
+
 function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, taxiRequestUserId, channel, taxiRoleId) {
     channel.messages.fetch(sentMessageId).then(sentMessage => {
         var employeeHasAnswered = false;
@@ -28,8 +30,20 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
                     .setTitle('Waiting for the user\'s final confirmation... ⏳')
                     .setDescription(`Your taxi request has been accepted by <@${i.user.id}>. Now it's up to <@${taxiRequestUserId}> to confirm the ride.\n\nPlease confirm your taxi request one last time by clicking one of the buttons below:`)
                     .setColor(0x00FF00);
-                await i.message.edit({ components: [] });
+
+                const newactionRow = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setLabel('Manage Request')
+                            .setStyle(ButtonStyle.Primary)
+                            .setCustomId('manage.taxi.request')
+                    );
+
                 
+                await i.message.edit({ components: [] });
+                await i.deferUpdate(); // Deferring the update to remove the "interaction failed" message
+                await i.message.edit({ components: [newactionRow] });
+
                 const actionRow = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
@@ -63,7 +77,17 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
                         i.message.channel.id
                     ],
                 );
+                _db.run(
+                    'INSERT INTO taxi_messages (type, taxiuuid, guildid, messageid, channelid) VALUES ("TAXI_MANAGE", ?, ?, ?, ?)',
+                    [
+                        i.customId.split('.')[2], // Extract the request UUID from the custom ID
+                        i.guild.id,
+                        i.message.id,
+                        i.message.channel.id
+                    ],
+                );
                 setupTaxiRequestPersonaCollector(_db, client, resp.id, voiceChannelId, taxiRequestUserId, channel, taxiRoleId);
+                setupTaxiManagementCollector(_db, client, i.message.id, voiceChannelId, taxiRequestUserId, channel, taxiRoleId);
             } else if (selection === `decline.taxi`) {
                 const declineEmbed = new EmbedBuilder()
                     .setTitle('Taxi Request Unavailable ✖️')
@@ -80,7 +104,7 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
                         i.message.id
                     ],
                 );
-            }
+            } 
         });
 
         collector.on('end', collected => {
@@ -179,7 +203,7 @@ function setupTaxiRequestPersonaCollector(_db, client, sentMessageId, voiceChann
                         i.message.id
                     ],
                 );
-            }
+            } 
         });
 
         collector.on('end', collected => {
@@ -225,48 +249,264 @@ function setupTaxiRequestPersonaCollector(_db, client, sentMessageId, voiceChann
 }
 
 function setupTaxiDeletionCollector(_db, client, sentMessageId, voiceChannelId, taxiRequestUserId, channel, taxiRoleId) {
-    console.log(`Setting up TAXI_DELETE collector for message ${sentMessageId} in channel ${channel.id} for user ${taxiRequestUserId}.`);
+    try {
+        console.log(`Setting up TAXI_DELETE collector for message ${sentMessageId} in channel ${channel.id} for user ${taxiRequestUserId}.`);
+        channel.messages.fetch(sentMessageId).then(sentMessage => {
+            const collector = sentMessage.createMessageComponentCollector({
+                componentType: ComponentType.Button,
+                time: 2147483647 
+            });
+    
+            console.log(`TAXI_DELETE set up for message ${sentMessageId} in channel ${channel.id} for user ${taxiRequestUserId}.`);
+    
+            collector.on('collect', async i => {
+                
+                if (i.customId.startsWith('delete.taxi')) {
+                    collector.stop();
+                    // delete both the text and voice channel
+                    const taxiUUID = i.customId.split('.')[1]; // Extract the request UUID from the custom ID
+                    const voiceChannel = i.guild.channels.cache.get(voiceChannelId)
+    
+                    const guildid = i.guild.id;
+                    const messageid = i.message.id;
+    
+                    if (voiceChannel) {
+                        await voiceChannel.delete();
+                        console.log(`Deleted voice channel: ${voiceChannel.name}`);
+                    } else {
+                        console.log(`Voice channel not found for taxi UUID: ${taxiUUID}`);
+                    }
+                    // delete the text channel
+                    await channel.delete();
+                    console.log(`Deleted text channel: ${channel.name}`);
+    
+                    _db.run(
+                        'DELETE FROM taxi_messages WHERE taxiuuid = ? AND guildid = ? AND messageid = ?',
+                        [
+                            taxiUUID, // Extract the request UUID from the custom ID
+                            guildid,
+                            messageid
+                        ],
+                    );
+                }
+            });
+    
+            collector.on('end', collected => {
+            });
+        });
+    } catch (error) {
+        console.error(`Error setting up TAXI_DELETE collector: ${error.message}`);
+    }
+};
+
+function setupTaxiManagementCollector(_db, client, sentMessageId, voiceChannelId, taxiRequestUserId, channel, taxiRoleId) {
+    console.log(`Setting up TAXI_MANAGE collector for message ${sentMessageId} in channel ${channel.id} for user ${taxiRequestUserId}.`);
     channel.messages.fetch(sentMessageId).then(sentMessage => {
         const collector = sentMessage.createMessageComponentCollector({
             componentType: ComponentType.Button,
             time: 2147483647 
         });
 
-        console.log(`TAXI_DELETE set up for message ${sentMessageId} in channel ${channel.id} for user ${taxiRequestUserId}.`);
+        console.log(`TAXI_MANAGE set up for message ${sentMessageId} in channel ${channel.id} for user ${taxiRequestUserId}.`);
 
         collector.on('collect', async i => {
             
-            if (i.customId.startsWith('delete.taxi')) {
-                collector.stop();
-                // delete both the text and voice channel
-                const taxiUUID = i.customId.split('.')[1]; // Extract the request UUID from the custom ID
-                const voiceChannel = i.guild.channels.cache.get(voiceChannelId)
+            if (i.customId.startsWith('manage.taxi.request')) {
+                // check if user has permission to manage the taxi request
+                taxiRoleId = (await getSetting(_db, i.guild.id, 'taxi_role')).replace(/<@&(\d+)>/, '$1');
 
-                const guildid = i.guild.id;
-                const messageid = i.message.id;
-
-                if (voiceChannel) {
-                    await voiceChannel.delete();
-                    console.log(`Deleted voice channel: ${voiceChannel.name}`);
-                } else {
-                    console.log(`Voice channel not found for taxi UUID: ${taxiUUID}`);
+                if (!i.member.roles.cache.has(taxiRoleId)) {
+                    const declineMessage = await i.reply({ content: 'You do not have permission to manage taxi requests.', ephemeral: true });
+                    await new Promise(resolve => setTimeout(resolve, 3000));
+                    await declineMessage.delete();
+                    return;
                 }
-                // delete the text channel
-                await channel.delete();
-                console.log(`Deleted text channel: ${channel.name}`);
 
-                _db.run(
-                    'DELETE FROM taxi_messages WHERE taxiuuid = ? AND guildid = ? AND messageid = ?',
-                    [
-                        taxiUUID, // Extract the request UUID from the custom ID
-                        guildid,
-                        messageid
-                    ],
-                );
+                const manageEmbed = new EmbedBuilder()
+                    .setTitle('Manage Taxi Request')
+                    .setDescription(`You can manage your taxi request here. Please choose to accept or decline the request.`)
+                    .setColor(0xFFFF00);
+
+                const retrievedTaxiStatus = await new Promise((resolve, reject) => {
+                    _db.get(
+                        `SELECT payment_status, taxi_status FROM taxi_requests WHERE request_id = ?`,
+                        [i.channel.name.replace(/^taxi-/, '')], // maybe get the uuid differently in the future to avoid issues with channel names
+                        (err, row) => {
+                            if (err) reject(err);
+                            else resolve(row);
+                        }
+                    );
+                });
+
+                console.log(`Retrieved taxi status for request UUID: ${i.channel.name.replace(/^taxi-/, '')}`, retrievedTaxiStatus);
+
+                const actionRow1 = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`status.payment.accepted.${i.customId.split('.')[2]}`)
+                            .setLabel('Payment Accepted')
+                            .setStyle(ButtonStyle.Success)
+                            .setEmoji('✅')
+                            .setDisabled(!(retrievedTaxiStatus.payment_status != 'PAYMENT_ACCEPTED')),
+                        new ButtonBuilder()
+                            .setCustomId(`status.taxi.accepted${i.customId.split('.')[2]}`)
+                            .setLabel('Taxi Complete')
+                            .setStyle(ButtonStyle.Success)
+                            .setEmoji('✅')
+                            .setDisabled(!(retrievedTaxiStatus.taxi_status != 'TAXI_ACCEPTED'))
+                        
+                    );
+                
+                const actionRow2 = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`status.payment.failed.${i.customId.split('.')[2]}`)
+                            .setLabel('Payment Failed')
+                            .setStyle(ButtonStyle.Danger)
+                            .setEmoji('✖️')
+                            .setDisabled(!(retrievedTaxiStatus.payment_status != 'PAYMENT_FAILED')),
+                        new ButtonBuilder()
+                            .setCustomId(`status.taxi.failed.${i.customId.split('.')[2]}`)
+                            .setLabel('Taxi Failed')
+                            .setStyle(ButtonStyle.Danger)
+                            .setEmoji('✖️')
+                            .setDisabled(!(retrievedTaxiStatus.taxi_status != 'TAXI_FAILED'))
+                    );
+
+                let disableCloseRequest = (retrievedTaxiStatus.taxi_status == null) || (retrievedTaxiStatus.payment_status == null);
+
+                let additionalDescription = disableCloseRequest ?
+                    `\n\nYou can close the request once the payment has been accepted or the taxi has been completed.` :
+                    `\n\nYou can now close the request by opening this menu again.`;
+
+                const actionRow3 = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`close.taxi.${i.channel.name.replace(/^taxi-/, '')}`)
+                            .setLabel('Close Request')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('🗑️')
+                            .setDisabled(disableCloseRequest)
+                    );
+
+                //send new message with the manage embed and action row
+                await i.reply({ embeds: [manageEmbed], components: [actionRow1, actionRow2, actionRow3], ephemeral: true });
+                const managementMessage = await i.fetchReply(); // This gets the ephemeral message you just sent
+
+                const managementCollector = managementMessage.createMessageComponentCollector({
+                    componentType: ComponentType.Button,
+                    time: 600_000 // 10 minutes
+                });
+
+
+                managementCollector.on('collect', async j => {
+                    const selection = j.customId
+                    const requestUUID = j.channel.name.replace(/^taxi-/, ''); // Extract the request UUID from the channel name
+
+                    console.log(`Management collector interaction: ${selection} for request UUID: ${requestUUID}`);
+
+                    if (selection.startsWith(`status.payment.accepted`)) {
+                        _db.run(
+                            'UPDATE taxi_requests SET payment_status = ? WHERE request_id = ? AND guild_id = ?',
+                            [
+                                'PAYMENT_ACCEPTED',
+                                requestUUID, // Extract the request UUID from the custom ID
+                                j.guild.id
+                            ],
+                        );
+                        const paymentAcceptedEmbed = new EmbedBuilder()
+                            .setTitle('Payment Accepted 💰')
+                            .setDescription(`The payment for the taxi request has been accepted.`+additionalDescription)
+                            .setColor(0x00FF00);
+                        await j.update({ embeds: [paymentAcceptedEmbed], components: [], content: `<@${taxiRequestUserId}>` });
+                    } else if (selection.startsWith(`status.taxi.accepted`)) {
+                        _db.run(
+                            'UPDATE taxi_requests SET taxi_status = ? WHERE request_id = ? AND guild_id = ?',
+                            [
+                                'TAXI_ACCEPTED',
+                                requestUUID, // Extract the request UUID from the custom ID
+                                j.guild.id
+                            ],
+                        );
+                        const taxiAcceptedEmbed = new EmbedBuilder()
+                            .setTitle('Taxi Request Completed 🚖')
+                            .setDescription(`The taxi request has been completed successfully.`+additionalDescription)
+                            .setColor(0x00FF00);
+                        await j.update({ embeds: [taxiAcceptedEmbed], components: [], content: `<@${taxiRequestUserId}>` });
+                    } else if (selection.startsWith(`status.payment.failed`)) {
+                        _db.run(
+                            'UPDATE taxi_requests SET payment_status = ? WHERE request_id = ? AND guild_id = ?',
+                            [
+                                'PAYMENT_FAILED',
+                                requestUUID, // Extract the request UUID from the custom ID
+                                j.guild.id
+                            ],
+                        );
+                        const paymentFailedEmbed = new EmbedBuilder()
+                            .setTitle('Payment Failed ❌')
+                            .setDescription(`The payment for the taxi request has failed.`+additionalDescription)
+                            .setColor(0xFF0000);
+                        await j.update({ embeds: [paymentFailedEmbed], components: [], content: `<@${taxiRequestUserId}>` });
+                    } else if (selection.startsWith(`status.taxi.failed`)) {
+                        _db.run(
+                            'UPDATE taxi_requests SET taxi_status = ? WHERE request_id = ? AND guild_id = ?',
+                            [
+                                'TAXI_FAILED',
+                                requestUUID, // Extract the request UUID from the custom ID
+                                j.guild.id
+                            ],
+                        );
+                        const taxiFailedEmbed = new EmbedBuilder()
+                            .setTitle('Taxi Request Failed ❌')
+                            .setDescription(`The taxi request has failed.`+additionalDescription)
+                            .setColor(0xFF0000);
+                        await j.update({ embeds: [taxiFailedEmbed], components: [], content: `<@${taxiRequestUserId}>` });
+                    } else if (selection.startsWith(`close.taxi`)) {
+                        // send new message with the delete button
+                        const closeEmbed = new EmbedBuilder()
+                            .setTitle('Taxi Request Closed')
+                            .setDescription(`The taxi request has been closed. You can delete the request now.`)
+                            .setColor(0x00FF00);
+                        const actionRow = new ActionRowBuilder()
+                            .addComponents(
+                                new ButtonBuilder()
+                                    .setCustomId(`delete.taxi.${requestUUID}`)
+                                    .setLabel('Delete Request')
+                                    .setStyle(ButtonStyle.Danger)
+                                    .setEmoji('🗑️')
+                            );
+                        const newDeletionMessage = await j.reply({ embeds: [closeEmbed], components: [actionRow], content: `<@${taxiRequestUserId}>` });
+                        _db.run(
+                            'DELETE FROM taxi_messages WHERE taxiuuid = ? AND guildid = ? AND messageid = ?',
+                            [
+                                requestUUID, // Extract the request UUID from the custom ID
+                                j.guild.id,
+                                j.message.id
+                            ],
+                        );
+
+                        _db.run(
+                            'INSERT INTO taxi_messages (type, taxiuuid, guildid, messageid, channelid) VALUES ("TAXI_DELETE", ?, ?, ?, ?)',
+                            [
+                                requestUUID, // Extract the request UUID from the custom ID
+                                j.guild.id,
+                                j.message.id,
+                                j.channel.id
+                            ],
+                        );
+
+                        setupTaxiDeletionCollector(_db, client, newDeletionMessage.id, voiceChannelId, taxiRequestUserId, channel, taxiRoleId);
+                    }
+                });
+
+                managementCollector.on('end', collected => {
+                    managementMessage.delete();
+                })
             }
         });
 
         collector.on('end', collected => {
+            
         });
     });
 };
@@ -274,5 +514,6 @@ function setupTaxiDeletionCollector(_db, client, sentMessageId, voiceChannelId, 
 module.exports = {
     setupTaxiRequestCollector,
     setupTaxiRequestPersonaCollector,
-    setupTaxiDeletionCollector
+    setupTaxiDeletionCollector,
+    setupTaxiManagementCollector
 };

@@ -9,7 +9,7 @@ const { settingsTemplate } = require('./commands/general/settings.json');
 const { updateManagementMessage } = require('./utility/jobpost-reaction');
 const { addPublishMessageComponentsCollector } = require('./utility/publish');
 const { loadAndScheduleEvents } = require('./utility/eventScheduler');
-const { setupTaxiRequestCollector, setupTaxiRequestPersonaCollector, setupTaxiDeletionCollector} = require('./commands/touring/taxiHelpers/collectors');	
+const { setupTaxiRequestCollector, setupTaxiRequestPersonaCollector, setupTaxiDeletionCollector, setupTaxiManagementCollector} = require('./commands/touring/taxiHelpers/collectors');	
 
 if (!verifySettingsJson(settingsTemplate)){
 	console.log("Invalid settings.json file.");
@@ -80,6 +80,8 @@ db.run(`CREATE TABLE IF NOT EXISTS taxi_requests (
     destination_system TEXT NOT NULL,
     destination_planet TEXT NOT NULL,
     destination_moon TEXT,                            -- Optional
+	"payment_status"	TEXT,
+	"taxi_status"	TEXT,
 	FOREIGN KEY(guild_id) REFERENCES guilds(id)
 );`);
 
@@ -342,15 +344,43 @@ client.login(token).then(async () => {
 					const taxiRoleId = (await getSetting(db, row.guildid, 'taxi_role')).replace(/<@&(\d+)>/, '$1');
 					const type = row.type;
 
-					if (type == 'TAXI_ACCEPT_STAFF_REQUEST') {
-						setupTaxiRequestCollector(db, client, messageId, voiceChannelId, userId, channel, taxiRoleId)
+					let ableToFetch = true;
+					try {
+						//try to fetch the message
+						await channel.messages.fetch(messageId);
+					} catch (error) {
+						console.error(`Failed to fetch message ${messageId} in channel ${channelId}:`, error.name);
+						ableToFetch = false;
+					} 
+
+					if (!ableToFetch) {
+						console.log(`Message ${messageId} not found in channel ${channelId}. Deleting...`);
+						try {
+							db.run(`DELETE FROM taxi_messages WHERE messageid = ?`, [messageId], (err) => {
+								if (err) {
+									console.error(`Failed to delete taxi message for channel ${channelId}:`, err.message);
+								} else {
+									console.log(`Deleted taxi message for channel ${channelId}`);
+								}
+							});
+						} catch (err) {
+							console.error(`Failed to delete taxi message for channel ${channelId}:`, err.message);
+						}
+					} else {
+						if (type == 'TAXI_ACCEPT_STAFF_REQUEST') {
+							setupTaxiRequestCollector(db, client, messageId, voiceChannelId, userId, channel, taxiRoleId)
+						}
+						if (type == 'TAXI_ACCEPT_PERSONA_REQUEST') {
+							setupTaxiRequestPersonaCollector(db, client, messageId, voiceChannelId, userId, channel, taxiRoleId, true);
+						}
+						if (type == 'TAXI_DELETE') {
+							setupTaxiDeletionCollector(db, client, messageId, voiceChannelId, userId, channel, taxiRoleId);
+						}
+						if (type == 'TAXI_MANAGE') {
+							setupTaxiManagementCollector(db, client, messageId, voiceChannelId, userId, channel, taxiRoleId);
+						}
 					}
-					if (type == 'TAXI_ACCEPT_PERSONA_REQUEST') {
-						setupTaxiRequestPersonaCollector(db, client, messageId, voiceChannelId, userId, channel, taxiRoleId, true);
-					}
-					if (type == 'TAXI_DELETE') {
-						setupTaxiDeletionCollector(db, client, messageId, voiceChannelId, userId, channel, taxiRoleId);
-					}
+					
 				} catch (err) {
 					console.error("error in bot.js taxi_messages: ", err);
 				}
