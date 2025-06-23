@@ -82,6 +82,7 @@ db.run(`CREATE TABLE IF NOT EXISTS taxi_requests (
     destination_moon TEXT,                            -- Optional
 	"payment_status"	TEXT,
 	"taxi_status"	TEXT,
+	"accepted_people"	TEXT DEFAULT "",
 	FOREIGN KEY(guild_id) REFERENCES guilds(id)
 );`);
 

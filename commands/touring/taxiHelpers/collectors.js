@@ -17,6 +17,18 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
             const selection = i.customId.split('.')[0]+"."+i.customId.split('.')[1]; // Get the selection from the custom ID
             const requestUUID = i.customId.split('.')[2]; // Extract the request UUID from the custom ID
             // make sure the user that made the interaction, has the taxi role
+
+            const fetched_taxirequest = await new Promise((resolve, reject) => {
+                _db.get(
+                    `SELECT * FROM taxi_requests WHERE request_id = ?`,
+                    [requestUUID],
+                    (err, row) => {
+                        if (err) reject(err);
+                        else resolve(row);
+                    }
+                );
+            });
+
             if (!i.member.roles.cache.has(taxiRoleId)) {
                 const declineMessage = await i.reply({ content: 'You do not have permission to accept or decline taxi requests.', ephemeral: true });
                 await new Promise(resolve => setTimeout(resolve, 3000));
@@ -25,6 +37,57 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
             }
             
             if (selection === `accept.taxi`) {
+                const acceptedPeople = fetched_taxirequest.accepted_people
+                    .split(';')
+                    .filter(person => person !== "");
+
+                const currentamountOfEmployees = acceptedPeople.length + 1; // +1 for the current user accepting the request
+                const threat_level = fetched_taxirequest.threat_level;
+                const neededForPVP = 3
+                const neededForPVE = 2
+
+                await new Promise((resolve, reject) => {
+                    _db.get(
+                        `UPDATE taxi_requests SET accepted_people = ? WHERE request_id = ?`,
+                        [fetched_taxirequest.accepted_people+i.user.username+";",requestUUID],
+                        (err, row) => {
+                            if (err) reject(err);
+                            else resolve(row);
+                        }
+                    );
+                });
+
+                if (threat_level === 't_pvp' && currentamountOfEmployees < neededForPVP) {
+                    i.deferUpdate(); // Deferring the update to remove the "interaction failed" message
+                    // Send message in channel indicating that another employee needs to accept the request
+                    const insufficientEmbed = new EmbedBuilder()
+                        .setTitle(i.user.username + ' has accepted your request, insufficient employees for PVP request')
+                        .setDescription(`This is a PVP request and requires at least ${neededForPVP} employees to accept it. Currently, only ${currentamountOfEmployees} employees have accepted the request.`)
+                        .setColor(0xFF0000);
+                    await i.channel.send({ embeds: [insufficientEmbed] });
+                    return;
+                }
+
+                if (threat_level === 't_pve' && currentamountOfEmployees < neededForPVE) {
+                    i.deferUpdate(); // Deferring the update to remove the "interaction failed" message
+                    // Send message in channel indicating that another employee needs to accept the request
+                    const insufficientEmbed = new EmbedBuilder()
+                        .setTitle(i.user.username + ' has accepted your request, insufficient employees for PVE request')
+                        .setDescription(`This is a PVE request and requires at least ${neededForPVE} employees to accept it. Currently, only ${currentamountOfEmployees} employees have accepted the request.`)
+                        .setColor(0xFF0000);
+                    await i.channel.send({ embeds: [insufficientEmbed] });
+                    return;
+                }
+
+                if (currentamountOfEmployees == neededForPVE || currentamountOfEmployees == neededForPVP) {
+                    // Send message in channel indicating that the request is ready to be accepted
+                    const readyEmbed = new EmbedBuilder()
+                        .setTitle(i.user.username + ' has accepted your request, ready to be accepted')
+                        .setDescription(`This request is now ready to be accepted by the requesting user. Please wait for them to confirm.`)
+                        .setColor(0x00FF00);
+                    await i.channel.send({ embeds: [readyEmbed] });
+                }
+
                 employeeHasAnswered = true;
                 const acceptEmbed = new EmbedBuilder()
                     .setTitle('Waiting for the user\'s final confirmation... ⏳')
@@ -63,7 +126,7 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
                 _db.run(
                     'DELETE FROM taxi_messages WHERE taxiuuid = ? AND guildid = ? AND messageid = ?',
                     [
-                        i.customId.split('.')[2], // Extract the request UUID from the custom ID
+                        requestUUID, 
                         i.guild.id,
                         i.message.id
                     ],
@@ -71,7 +134,7 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
                 _db.run(
                     'INSERT INTO taxi_messages (type, taxiuuid, guildid, messageid, channelid) VALUES ("TAXI_ACCEPT_PERSONA_REQUEST", ?, ?, ?, ?)',
                     [
-                        i.customId.split('.')[2], // Extract the request UUID from the custom ID
+                        requestUUID,
                         i.guild.id,
                         resp.id,
                         i.message.channel.id
@@ -80,7 +143,7 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
                 _db.run(
                     'INSERT INTO taxi_messages (type, taxiuuid, guildid, messageid, channelid) VALUES ("TAXI_MANAGE", ?, ?, ?, ?)',
                     [
-                        i.customId.split('.')[2], // Extract the request UUID from the custom ID
+                        requestUUID, 
                         i.guild.id,
                         i.message.id,
                         i.message.channel.id
