@@ -91,12 +91,25 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
         }
         finalDestinationString += '**';
 
+        const disclaimer_fields = [
+            {
+                name: 'Disclaimer',
+                value: 'By confirming this request, you agree to the terms of service. Our pilots will do their best to fulfill your request promptly, but service availability and travel times may vary based on in-game conditions, server status, and pilot availability. Please be ready at your designated pickup location. In case of unexpected issues, your pilot will contact you.\n\n**Time disclaimer:**\nPlease be aware, that it can take up to 10 minutes for your request to be confirmed, it also may be cancelled if no employees are available.'
+            },
+            threatLevel === 't_pvp' ? {
+                name: "PVP Disclaimer",
+                value: "Please be aware that if you request a taxi in a PVP situation, 2 additional security employees will need to accept your request on top of the pilot. Furthermore, we cannot guarantee your safety. Our pilots will do their best to get you to your destination safely, but they are not responsible for any losses incurred during the trip."
+            } : null,
+            threatLevel === 't_pve' ? {
+                name: "PVE Disclaimer",
+                value: "Please be aware that if you request a taxi in a PVE situation, 1 additional security employee will need to accept your request on top of the pilot. Furthermore, we cannot guarantee your safety. Our pilots will do their best to get you to your destination safely, but they are not responsible for any losses incurred during the trip."
+            } : null
+        ].filter(Boolean);
+
         const finalConfirmationEmbed = new EmbedBuilder()
             .setTitle('Confirm Your Taxi Request')
             .setDescription(`Please review your request:\n\n**Pickup:** ${finalPickupString}\n**Destination:** ${finalDestinationString}`)
-            .addFields(
-                { name: 'Disclaimer', value: 'By confirming this request, you agree to the terms of service. Our pilots will do their best to fulfill your request promptly, but service availability and travel times may vary based on in-game conditions, server status, and pilot availability. Please be ready at your designated pickup location. In case of unexpected issues, your pilot will contact you.\n\n**Time disclaimer:**\nPlease be aware, that it can take up to 10 minutes for your request to be confirmed, it also may be cancelled if no employees are available.' }
-            )
+            .addFields(disclaimer_fields)
             .setColor(0xFFA500);
 
         const agreeButton = new ButtonBuilder()
