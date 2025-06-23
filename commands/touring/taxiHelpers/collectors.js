@@ -265,7 +265,8 @@ function setupTaxiDeletionCollector(_db, client, sentMessageId, voiceChannelId, 
                     collector.stop();
                     // delete both the text and voice channel
                     const taxiUUID = i.customId.split('.')[1]; // Extract the request UUID from the custom ID
-                    const voiceChannel = i.guild.channels.fetch(voiceChannelId)
+                    const voiceChannel = await i.guild.channels.fetch(voiceChannelId)
+                    const textChannel = await i.guild.channels.fetch(channel.id);
     
                     const guildid = i.guild.id;
                     const messageid = i.message.id;
@@ -277,7 +278,7 @@ function setupTaxiDeletionCollector(_db, client, sentMessageId, voiceChannelId, 
                         console.log(`Voice channel not found for taxi UUID: ${taxiUUID}`);
                     }
                     // delete the text channel
-                    await channel.delete();
+                    await textChannel.delete();
                     console.log(`Deleted text channel: ${channel.name}`);
     
                     _db.run(
