@@ -475,7 +475,8 @@ function setupTaxiManagementCollector(_db, client, sentMessageId, voiceChannelId
                                     .setStyle(ButtonStyle.Danger)
                                     .setEmoji('🗑️')
                             );
-                        const newDeletionMessage = await j.reply({ embeds: [closeEmbed], components: [actionRow], content: `<@${taxiRequestUserId}>` });
+                        j.deferUpdate(); // Deferring the update to remove the "interaction failed" message
+                        const newDeletionMessage = await j.channel.send({ embeds: [closeEmbed], components: [actionRow], content: `<@${taxiRequestUserId}>` });
                         _db.run(
                             'DELETE FROM taxi_messages WHERE taxiuuid = ? AND guildid = ? AND messageid = ?',
                             [
