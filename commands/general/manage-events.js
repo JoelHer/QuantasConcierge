@@ -175,11 +175,6 @@ async function renderSelectedEvent(event_uuid) {
                 inline: true
             },
             {
-                name: 'Location',
-                value: row.location || 'Unknown',
-                inline: true
-            },
-            {
                 name: 'Ticketing', 
                 value: ticketingPricesString,
                 inline: true
@@ -317,16 +312,10 @@ async function handleButtonInteraction(interaction, originalMessage) {
             const event_uuid = interaction.customId.split('?')[1].split('=')[1]
             const rows = await dbQuery(`SELECT * FROM events WHERE uuid = ?;`, [event_uuid]);
             var location = "";
-            if (!rows[0].location) {
-                const intreply = await interaction.update({ content: "Where is the departure location? (e.g. Everus Harbor, Area 18, etc.)", components: [], embeds: [], fetchReply: true });
-                const filter = m => m.author.id === interaction.user.id;
-                const collector = await intreply.channel.createMessageCollector({ filter: filter, time: 3_600_000 });
-                collector.on('collect', async i => {
-                    collector.stop();
-                    i.delete();
-                    location = i.content;
-                });
-            } else 
+            if (!rows[0].boardinglocation) {
+                const intreply = await interaction.reply({ content: "Please set a location first.", components: [], embeds: [], fetchReply: true, ephemeral: true });
+                return;
+            } else
                 _location = rows[0].boardinglocation;
 
             let controlRow = new ActionRowBuilder();
@@ -356,7 +345,7 @@ async function handleButtonInteraction(interaction, originalMessage) {
                 } else if (i.customId.startsWith('confirmpublishevent')) {
                     const event_uuid = i.customId.split('?')[1].split('=')[1];
                     const location = i.customId.split('?')[2].split('=')[1];
-                    dbQuery(`UPDATE events SET location = ? WHERE uuid = ?;`, [location, event_uuid]);
+                    dbQuery(`UPDATE events SET boardinglocation = ? WHERE uuid = ?;`, [location, event_uuid]);
                     const publish = async (selectedChannelId) => {
                         const selectedChannel = interaction.guild.channels.cache.get(selectedChannelId);
                         
