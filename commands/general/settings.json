@@ -63,6 +63,10 @@
                     "friendlyName": "Roles to mention in job post",
                     "dataType": "array[role]"
                 },
+                "announcement-mention": {
+                    "friendlyName": "Roles to mention in announcements",
+                    "dataType": "array[role]"
+                },
                 "unsureEmojirole": {
                     "friendlyName": "Unsure Emoji Role",
                     "dataType": "emojirole",

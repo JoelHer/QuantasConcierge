@@ -341,6 +341,7 @@ async function handleButtonInteraction(interaction, originalMessage) {
                     .setStyle(ButtonStyle.Success),
             );
             renderedMessage = await renderPublish(db, interaction, rows[0], _location, true);
+            renderedMessage.content = "Are you sure you want to publish this event? Please confirm by clicking the button below.";
             renderedMessage.components.push(controlRow);
             let publishMessage;
             try {
@@ -395,6 +396,9 @@ async function handleButtonInteraction(interaction, originalMessage) {
                                     dbQuery('SELECT * FROM events WHERE uuid = ?;', [event_uuid]).then(async _events => {
                                         const publicannounce = await selectedChannel.send(await renderPublish(db, i, rows[0], _events[0].boardinglocation)); // TODO: add signups here AND DB entry for announcements
                                         addPublishMessageComponentsCollector(publicannounce, db);
+                                        publicannounce.crosspost().catch(err => {
+                                            console.error("Error while crossposting the message: ", err);
+                                        });
                                         getSetting(db, i.guild.id, 'boarding_lobby_channel').then(async eventchannel => {
                                             if (eventchannel) {
                                                 const channelId = eventchannel.slice(2, -1);

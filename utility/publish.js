@@ -96,6 +96,9 @@ module.exports = {
         });
     },
     async renderPublish(db, interaction, event, location, preview=false) {
+        //get announcement-mention setting
+        const announcementMention = await getSetting(db, event.guildid, "announcement-mention");
+
     
         let rolePrices = await module.exports.getRolePrices(db, event.uuid);
     
@@ -161,7 +164,7 @@ module.exports = {
                 }
             )
             .setImage(event.imageurl)
-            .setFooter({ text: 'Credits to BuildandPlay on Discord for the screenshot.' });
+            //.setFooter({ text: 'Credits to BuildandPlay on Discord for the screenshot.' }); TODO: FIX THIS
     
         if (!preview) {
             const row = new ActionRowBuilder()
@@ -172,9 +175,9 @@ module.exports = {
                         .setStyle('Primary'),
                 );
     
-            return { embeds: [embed], components: [row], ephemeral: true, fetchReply: true };
+            return { embeds: [embed], content: announcementMention, components: [row], ephemeral: true, fetchReply: true };
         } else {
-            return { embeds: [embed], components: [], ephemeral: true, fetchReply: true };
+            return { embeds: [embed], content: announcementMention, components: [], ephemeral: true, fetchReply: true };
         }
     },
     async updatePublicAnnoucementMessage(db, client, event_uuid){
