@@ -654,7 +654,12 @@ async function handleButtonInteraction(interaction, originalMessage) {
                         const msgcollector = i.channel.createMessageCollector({ filter: msgfilter, time: 3_600_000 });
                         msgcollector.on('collect', async msg => {
                             msgcollector.stop();
-                            dbQuery(`UPDATE eventguestrole SET price = ? WHERE eventid = ? AND roleid = ?;`, [msg.content, uuid, selectedticket]);
+                            await dbQuery(`
+                                INSERT INTO eventguestrole (eventid, roleid, price, seats)
+                                VALUES (?, ?, ?, ?)
+                                ON CONFLICT(eventid, roleid)
+                                DO UPDATE SET price = excluded.price, seats = excluded.seats;
+                            `, [uuid, selectedticket, msg.content, ticket.maxSeats]);
                             msg.delete();
                             updatePublicAnnoucementMessage(db, interaction.client, uuid);
                             await interaction.editReply(await renderSelectedEvent(uuid));
@@ -730,7 +735,13 @@ async function handleButtonInteraction(interaction, originalMessage) {
                         const msgcollector = i.channel.createMessageCollector({ filter: msgfilter, time: 3_600_000 });
                         msgcollector.on('collect', async msg => {
                             msgcollector.stop();
-                            dbQuery(`UPDATE eventguestrole SET seats = ? WHERE eventid = ? AND roleid = ?;`, [msg.content, uuid, selectedticket]);
+
+                            await dbQuery(`
+                                INSERT INTO eventguestrole (eventid, roleid, price, seats)
+                                VALUES (?, ?, COALESCE((SELECT price FROM eventguestrole WHERE eventid = ? AND roleid = ?), 0), ?)
+                                ON CONFLICT(eventid, roleid) DO UPDATE SET seats = excluded.seats;
+                            `, [uuid, selectedticket, uuid, selectedticket, msg.content]);
+
                             msg.delete();
                             updatePublicAnnoucementMessage(db, interaction.client, uuid);
                             await interaction.editReply(await renderSelectedEvent(uuid));

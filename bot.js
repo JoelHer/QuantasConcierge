@@ -158,7 +158,8 @@ db.run(`CREATE TABLE IF NOT EXISTS eventguestrole (
 	price INTEGER NOT NULL,
 	seats INTEGER NOT NULL,
 	FOREIGN KEY(eventid) REFERENCES events(uuid),
-	FOREIGN KEY(roleid) REFERENCES ticketroles(ticketroleid)
+	FOREIGN KEY(roleid) REFERENCES ticketroles(ticketroleid),
+	UNIQUE(eventid, roleid)
 )`);
 
 //only insert once
