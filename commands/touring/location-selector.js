@@ -105,7 +105,7 @@ async function getLocationSelection(interaction, type) {
 
             const planetOptions = planetsInSelectedSystem.map(planetName => ({
                 label: capitalizeFirstLetter(planetName),
-                description: `I want ${isPickup ? 'to get picked up from' : 'to go to'} ${capitalizeFirstLetter(planetName)}.`,
+                description: `I want ${isPickup ? 'to get picked up from / near' : 'to go to'} ${capitalizeFirstLetter(planetName)}.`,
                 value: `planet.${planetName.toLowerCase()}`,
                 emoji: '🌍'
             }));
@@ -131,18 +131,30 @@ async function getLocationSelection(interaction, type) {
 
         } else if (currentStep === 'moon') {
             const moonsInSelectedPlanet = locationData.getMoons(selectedSystemName, selectedPlanetName);
+            const disablePlanetSelection  = locationData.getDisablePlanetSelection (selectedSystemName, selectedPlanetName);
 
-            const moonOptions = [{
-                label: `Pickup at ${capitalizeFirstLetter(selectedPlanetName)} (No specific moon)`,
-                description: `I want to be picked up directly from ${capitalizeFirstLetter(selectedPlanetName)}.`,
-                value: `moon.planetonly`,
-                emoji: '🌍',
-            }, ...moonsInSelectedPlanet.map(moonName => ({
-                label: capitalizeFirstLetter(moonName),
-                description: `I want ${isPickup ? 'to get picked up from' : 'to go to'} ${capitalizeFirstLetter(moonName)}.`,
-                value: `moon.${moonName.toLowerCase()}`,
-                emoji: '🌑',
-            }))];
+            let moonOptions = []
+
+            if (disablePlanetSelection) {
+                moonOptions = [...moonsInSelectedPlanet.map(moonName => ({
+                    label: capitalizeFirstLetter(moonName),
+                    description: `I want ${isPickup ? 'to get picked up from' : 'to go to'} ${capitalizeFirstLetter(moonName)}.`,
+                    value: `moon.${moonName.toLowerCase()}`,
+                    emoji: '🌑',
+                }))]
+            } else {
+                moonOptions = [{
+                    label: `Pickup at ${capitalizeFirstLetter(selectedPlanetName)} (No specific moon)`,
+                    description: `I want to be picked up directly from ${capitalizeFirstLetter(selectedPlanetName)}.`,
+                    value: `moon.planetonly`,
+                    emoji: '🌍',
+                }, ...moonsInSelectedPlanet.map(moonName => ({
+                    label: capitalizeFirstLetter(moonName),
+                    description: `I want ${isPickup ? 'to get picked up from' : 'to go to'} ${capitalizeFirstLetter(moonName)}.`,
+                    value: `moon.${moonName.toLowerCase()}`,
+                    emoji: '🌑',
+                }))];
+            }
             const moonSelectCustomId = `select.${locationPrefix}.moon`;
 
             messageContent = buildSelectMenuMessage(

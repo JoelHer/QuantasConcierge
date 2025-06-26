@@ -588,7 +588,11 @@ function setupTaxiManagementCollector(_db, client, sentMessageId, voiceChannelId
                 });
 
                 managementCollector.on('end', collected => {
-                    managementMessage.delete();
+                    try {
+                        managementMessage.delete();
+                    } catch (e) {
+                        console.log('Something went wrong: ', e)
+                    }
                 })
             }
         });

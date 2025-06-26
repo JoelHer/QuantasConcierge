@@ -10,16 +10,42 @@ class StarCitizenLocation {
                         moons: ['Calliope', 'Clio', 'Euterpe']
                     },
                     {
+                        name: 'MicroTech Lagrange',
+                        moons: ['L1', 'L2', 'L3', 'L4', 'L5'],
+                        disablePlanetSelection: true
+                    },
+                    {
                         name: 'ArcCorp',
                         moons: ['Lyria', 'Wala']
+                    },
+                    {
+                        name: 'ArcCorp Lagrange',
+                        moons: ['L1', 'L2', 'L3', 'L4', 'L5'],
+                        disablePlanetSelection: true
+                        
                     },
                     {
                         name: 'Hurston',
                         moons: ['Aberdeen', 'Magda', 'Ita', 'Arial']
                     },
                     {
+                        name: 'Hurston Lagrange',
+                        moons: ['L1', 'L2', 'L3', 'L4', 'L5'],
+                        disablePlanetSelection: true
+                    },
+                    {
                         name: 'Crusader',
                         moons: ['Cellin', 'Daymar', 'Yela']
+                    },
+                    {
+                        name: 'Crusader Lagrange',
+                        moons: ['L1', 'L2', 'L3', 'L4', 'L5'],
+                        disablePlanetSelection: true
+                    },
+                    {
+                        name: 'Jump Points',
+                        moons: ['Pyro Gateway', 'Magnus Gateway', 'Terra Gateway'],
+                        disablePlanetSelection: true
                     }
                 ]
             },
@@ -27,24 +53,54 @@ class StarCitizenLocation {
                 name: 'Pyro',
                 planets: [
                     {
-                        name: 'Pyro II',
+                        name: 'Pyro I',
                         moons: []
                     },
                     {
-                        name: 'Pyro III',
+                        name: 'Pyro I Lagrange',
+                        moons: ['L1', 'L2', 'L3', 'L4', 'L5'],
+                        disablePlanetSelection: true
+                    },
+                    {
+                        name: 'Monox',
                         moons: []
                     },
                     {
-                        name: 'Pyro IV',
+                        name: 'Monox Lagrange',
+                        moons: ['L1', 'L2', 'L3', 'L4', 'L5'],
+                        disablePlanetSelection: true
+                    },
+                    {
+                        name: 'Bloom',
                         moons: []
+                    },
+                    {
+                        name: 'Bloom Lagrange',
+                        moons: ['L1', 'L2', 'L3', 'L4', 'L5'],
+                        disablePlanetSelection: true
                     },
                     {
                         name: 'Pyro V',
+                        moons: ['Ignis', 'Vatra', 'Adir', 'Fairo', 'Fuego', 'Vuur','Pyro IV']
+                    },
+                    {
+                        name: 'Pyro V Lagrange',
+                        moons: ['L1', 'L2', 'L3', 'L4', 'L5'],
+                        disablePlanetSelection: true
+                    },
+                    {
+                        name: 'Terminus',
                         moons: []
                     },
                     {
-                        name: 'Pyro VI',
-                        moons: []
+                        name: 'Terminus Lagrange',
+                        moons: ['L1', 'L2', 'L3', 'L4', 'L5'],
+                        disablePlanetSelection: true
+                    },
+                    {
+                        name: 'Jump Points',
+                        moons: ['Stanton Gateway'],
+                        disablePlanetSelection: true
                     }
                 ]
             }
@@ -79,6 +135,15 @@ class StarCitizenLocation {
             }
         }
         return bodies;
+    }
+
+    getDisablePlanetSelection(systemName, planetName) {
+        // if the planet has the disablePlanetSelection property set to true, return true, if it does not exist, return false
+        const system = this.systems.find(s => s.name.toLowerCase() === systemName.toLowerCase());
+        if (!system) return false;
+        const planet = system.planets.find(p => p.name.toLowerCase() === planetName.toLowerCase());
+        return planet ? planet.disablePlanetSelection || false : false;
+        
     }
 }
 
