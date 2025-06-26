@@ -327,7 +327,7 @@ async function handleButtonInteraction(interaction, originalMessage) {
                     location = i.content;
                 });
             } else 
-                _location = rows[0].location;
+                _location = rows[0].boardinglocation;
 
             let controlRow = new ActionRowBuilder();
             controlRow.addComponents(
@@ -391,7 +391,7 @@ async function handleButtonInteraction(interaction, originalMessage) {
                                     confirmCollector.stop();
                                     await interaction.editReply({ content: 'Event published successfully.', components: [], embeds: [], ephemeral: true });
                                     dbQuery('SELECT * FROM events WHERE uuid = ?;', [event_uuid]).then(async _events => {
-                                        const publicannounce = await selectedChannel.send(await renderPublish(db, interaction, rows[0], _events[0].location)); // TODO: add signups here AND DB entry for announcements
+                                        const publicannounce = await selectedChannel.send(await renderPublish(db, interaction, rows[0], _events[0].boardinglocation)); // TODO: add signups here AND DB entry for announcements
                                         addPublishMessageComponentsCollector(publicannounce, db);
                                         getSetting(db, interaction.guild.id, 'boarding_lobby_channel').then(async eventchannel => {
                                             if (eventchannel) {

@@ -77,6 +77,7 @@ module.exports = {
             dbQuery(db, `SELECT * FROM events WHERE uuid = ?;`, [uuid])
                 .then((rows) => {
                     let event = rows[0];
+                    console.log("Rendering event info for", event.title, "with uuid", uuid, event);
                     const _embed = new EmbedBuilder()
                         .setTitle(event.title)
                         .setColor(0x062d79)
@@ -184,7 +185,7 @@ module.exports = {
                 row = row[0]    
                 if (row) {
                     client.guilds.cache.get(row.guildid).channels.cache.get(row.channelid).messages.fetch(row.messageid).then((msg) =>{
-                        module.exports.renderPublish(db, null, row, row.location, false).then((newEmbed) => {
+                        module.exports.renderPublish(db, null, row, row.boardinglocation, false).then((newEmbed) => {
                             msg.edit(newEmbed)
                             db.all(`SELECT * from events join announcements ON announcements.eventuuid = events.uuid WHERE type = "PUBLIC_EVENT_INFO" and uuid = ?;`, [event_uuid], function (err, rows) {
                                 if (err) {
