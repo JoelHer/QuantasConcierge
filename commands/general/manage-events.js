@@ -372,37 +372,39 @@ async function handleButtonInteraction(interaction, originalMessage) {
                                     .setStyle(ButtonStyle.Success),
                             );
                             
-                            await interaction.editReply({
+                            await i.deferReply();
+
+                            await i.editReply({
                                 content: `Are you sure you want to publish the event in ${selectedChannel.name}?`,
                                 ephemeral: true,
                                 components: [],
                                 embeds: [],
                             });
 
-                            const confirmPublish = await interaction.editReply({ components: [controlRowConfirmSelect], ephemeral: true });
-                            const filter = i => i.user.id === interaction.user.id;
+                            const confirmPublish = await i.editReply({ components: [controlRowConfirmSelect], ephemeral: true });
+                            const filter = i => i.user.id === i.user.id;
                             const confirmCollector = confirmPublish.channel.createMessageComponentCollector({ filter: filter, time: 3_600_000 });
 
                             confirmCollector.on('collect', async i => {
                                 if (i.customId === 'cancelpublish') {
                                     confirmCollector.stop();
-                                    await interaction.editReply({ content: 'Event publishing cancelled.', components: [], embeds: [], ephemeral: true });
+                                    await i.update({ content: 'Event publishing cancelled.', components: [], embeds: [], ephemeral: true });
                                 } else if (i.customId === 'confirmpublish') {
                                     confirmCollector.stop();
-                                    await interaction.editReply({ content: 'Event published successfully.', components: [], embeds: [], ephemeral: true });
+                                    await i.update({ content: 'Event published successfully.', components: [], embeds: [], ephemeral: true });
                                     dbQuery('SELECT * FROM events WHERE uuid = ?;', [event_uuid]).then(async _events => {
-                                        const publicannounce = await selectedChannel.send(await renderPublish(db, interaction, rows[0], _events[0].boardinglocation)); // TODO: add signups here AND DB entry for announcements
+                                        const publicannounce = await selectedChannel.send(await renderPublish(db, i, rows[0], _events[0].boardinglocation)); // TODO: add signups here AND DB entry for announcements
                                         addPublishMessageComponentsCollector(publicannounce, db);
-                                        getSetting(db, interaction.guild.id, 'boarding_lobby_channel').then(async eventchannel => {
+                                        getSetting(db, i.guild.id, 'boarding_lobby_channel').then(async eventchannel => {
                                             if (eventchannel) {
                                                 const channelId = eventchannel.slice(2, -1);
-                                                const lobbyChannel = interaction.guild.channels.cache.get(channelId);
+                                                const lobbyChannel = i.guild.channels.cache.get(channelId);
                                                 if (lobbyChannel) {
                                                     console.log(lobbyChannel);
                                                     try {
-                                                        const messagetosend = await renderEventInfo(db, interaction, event_uuid);
+                                                        const messagetosend = await renderEventInfo(db, i, event_uuid);
                                                         const lobbyMessage = await lobbyChannel.send(messagetosend);
-                                                        await dbQuery(`INSERT INTO announcements (type, eventuuid, guildid, messageid, channelid) VALUES (?,?,?,?,?);`, ["PUBLIC_EVENT_INFO",event_uuid,interaction.guild.id,lobbyMessage.id,lobbyChannel.id]);
+                                                        await dbQuery(`INSERT INTO announcements (type, eventuuid, guildid, messageid, channelid) VALUES (?,?,?,?,?);`, ["PUBLIC_EVENT_INFO",event_uuid,i.guild.id,lobbyMessage.id,lobbyChannel.id]);
                                                         scheduleEvent(db, _events[0]);
                                                     } catch (err) {
                                                         console.error("Error while posting info message: ",err);
