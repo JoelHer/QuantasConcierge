@@ -91,10 +91,16 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
         }
         finalDestinationString += '**';
 
+        const price = await getSetting(db, interaction.guild.id, 'taxi-service-price');
+
         const disclaimer_fields = [
             {
+                name: "Pricing",
+                value: "This taxi service will cost **" + price + "** aUEC. By confirming this request, you agree to pay the service fee."
+            },
+            {
                 name: 'Disclaimer',
-                value: 'By confirming this request, you agree to the terms of service. Our pilots will do their best to fulfill your request promptly, but service availability and travel times may vary based on in-game conditions, server status, and pilot availability. Please be ready at your designated pickup location. In case of unexpected issues, your pilot will contact you.\n\n**Time disclaimer:**\nPlease be aware, that it can take up to 10 minutes for your request to be confirmed, it also may be cancelled if no employees are available.'
+                value: 'By confirming this request, you agree to the terms of service. Our pilots will do their best to fulfill your request promptly, but service availability and travel times may vary based on in-game conditions, server status, and pilot availability. Please be ready at your designated pickup location. In case of unexpected issues, your pilot will contact you.\n**Time Disclaimer:**\nPlease be aware, that it can take up to 10 minutes for your request to be confirmed, it also may be cancelled if no employees are available.'
             },
             threatLevel === 't_pvp' ? {
                 name: "PVP Disclaimer",
@@ -271,7 +277,7 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
 
                     const requestEmbed = new EmbedBuilder()
                         .setTitle('Taxi Request')
-                        .setDescription(`A new taxi request has been created by <@${interaction.user.id}>.\n*RSI-Handle: ${rsiHandle}*\n\n**Pickup:** ${finalPickupString}\n**Destination:** ${finalDestinationString}\n\n**Situation:**\n${situation.substring(2).toUpperCase()}\n\n**Threat level:**\n${threatLevel.substring(2).toUpperCase()}\n\n**Notes:**\n${notes}\n\nA staff member still needs to accept this request within 5 minutes.`)
+                        .setDescription(`A new taxi request has been created by <@${interaction.user.id}>.\n*RSI-Handle: ${rsiHandle}*\n\n**Pickup:** ${finalPickupString}\n**Destination:** ${finalDestinationString}\n\n**Situation:**\n${situation.substring(2).toUpperCase()}\n\n**Threat level:**\n${threatLevel.substring(2).toUpperCase()}\n\n**Notes:**\n${notes}\n\nA staff member still needs to accept this request within 10 minutes.`)
                         .setColor(0xFFFF00)
                         .setFooter({ text: `Request ID: ${requestUUID}` });
                     

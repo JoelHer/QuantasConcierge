@@ -43,8 +43,8 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
 
                 const currentamountOfEmployees = acceptedPeople.length + 1; // +1 for the current user accepting the request
                 const threat_level = fetched_taxirequest.threat_level;
-                const neededForPVP = 3
-                const neededForPVE = 2
+                const neededForPVP = 2
+                const neededForPVE = 1 // change this in the future
 
                 await new Promise((resolve, reject) => {
                     _db.get(

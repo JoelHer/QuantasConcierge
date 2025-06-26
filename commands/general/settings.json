@@ -28,6 +28,10 @@
                 "boarding_lobby_channel": {
                     "friendlyName": "Boarding Lobby Channel",
                     "dataType": "channel"
+                },
+                "taxi-service-price": {
+                    "friendlyName": "Fare price",
+                    "dataType": "string"
                 }
             }
         },
