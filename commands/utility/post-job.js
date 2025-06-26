@@ -117,6 +117,7 @@ module.exports = {
             .setAuthor({ name: 'Quantas Starlines', iconURL: 'https://i.ibb.co/Xxb3FC4/Quantas-Logo-V2-Discord.png' })
             .setDescription(description)
             .addFields(
+                { name: 'When?', value: `<t:${timestamp - 3600}:F>, <t:${timestamp - 3600}:R>` },
                 { name: 'Able to/interested to participate?', value: 'React below with the roles you could fulfil (🧑🏻‍✈️ for pilot, 🪠 for escort, 🔫 for onboard security, 🍾 for bartender and react with both your role and with ❔ emoji for maybe). Only react with roles that you are trained for (roles that you also have in the discord)!\n'+((_roles)? _roles:" ")},
             )
             .setTimestamp()
