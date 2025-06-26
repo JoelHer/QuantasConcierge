@@ -164,6 +164,7 @@ module.exports = {
                 }
             )
             .setImage(event.imageurl)
+            .setUrl('https://discord.gg/e6HmAzET')
             //.setFooter({ text: 'Credits to BuildandPlay on Discord for the screenshot.' }); TODO: FIX THIS
     
         if (!preview) {
