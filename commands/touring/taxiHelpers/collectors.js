@@ -1,4 +1,4 @@
-const { EmbedBuilder, ComponentType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ButtonInteraction, ButtonComponent } = require('discord.js');
+const { EmbedBuilder, ComponentType, ActionRowBuilder, ButtonBuilder, ButtonStyle, ButtonInteraction, ButtonComponent, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 
 const { getSetting } = require('../../../utility/dbHelper');
 
@@ -352,6 +352,24 @@ function setupTaxiDeletionCollector(_db, client, sentMessageId, voiceChannelId, 
                             messageid
                         ],
                     );
+                } else if (i.customId.startsWith('feedback.taxi')) {
+                    const taxiUUID = i.customId.split('.')[2]; // Extract the request UUID from the custom ID
+                    const modal = new ModalBuilder()
+                        .setCustomId('taxiFeedbackModal.'+taxiUUID)
+                        .setTitle('Taxi Feedback');
+
+                    const feedbackInput = new TextInputBuilder()
+                        .setCustomId('feedbackInput')
+                        .setLabel("What did you think about the taxi service?")
+                        // Paragraph means multiple lines of text.
+                        .setStyle(TextInputStyle.Paragraph)
+                        .setMaxLength(800)
+
+                    const firstActionRow = new ActionRowBuilder().addComponents(feedbackInput);
+
+                    modal.addComponents(firstActionRow);
+
+                    await i.showModal(modal);
                 }
             });
     
@@ -537,7 +555,12 @@ function setupTaxiManagementCollector(_db, client, sentMessageId, voiceChannelId
                                     .setCustomId(`delete.taxi.${requestUUID}`)
                                     .setLabel('Delete Request')
                                     .setStyle(ButtonStyle.Danger)
-                                    .setEmoji('🗑️')
+                                    .setEmoji('🗑️'),
+                                new ButtonBuilder()
+                                    .setCustomId(`feedback.taxi.${i.channel.name.replace(/^taxi-/, '')}`)
+                                    .setLabel('Send Feedback')
+                                    .setStyle(ButtonStyle.Primary)
+                                    .setEmoji('📝')
                             );
                         j.deferUpdate(); // Deferring the update to remove the "interaction failed" message
                         const newDeletionMessage = await j.channel.send({ embeds: [closeEmbed], components: [actionRow], content: `<@${taxiRequestUserId}>` });
@@ -555,7 +578,7 @@ function setupTaxiManagementCollector(_db, client, sentMessageId, voiceChannelId
                             [
                                 requestUUID, // Extract the request UUID from the custom ID
                                 j.guild.id,
-                                j.message.id,
+                                newDeletionMessage.id,
                                 j.channel.id
                             ],
                         );
