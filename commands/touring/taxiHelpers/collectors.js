@@ -237,7 +237,7 @@ function setupTaxiRequestPersonaCollector(_db, client, sentMessageId, voiceChann
                 userHasAnswered = true;
                 const acceptEmbed = new EmbedBuilder()
                     .setTitle('Taxi Request Accepted! 🚖')
-                    .setDescription(`Your taxi request has been accepted by <@${i.user.id}>.`)
+                    .setDescription(`Taxi Request Confirmed. The request has been confirmed by the passenger, <@${i.user.id}>.`)
                     .setColor(0x00FF00);
                 await i.message.edit({ embeds: [acceptEmbed], components: [], content: `` });
                 await i.message.channel.send(`<@${taxiRequestUserId}> Your request has been accepted! Please proceed to the designated voice channel: <#${voiceChannelId}>`);
