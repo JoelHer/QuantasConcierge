@@ -61,7 +61,7 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
                     i.deferUpdate(); // Deferring the update to remove the "interaction failed" message
                     // Send message in channel indicating that another employee needs to accept the request
                     const insufficientEmbed = new EmbedBuilder()
-                        .setTitle(i.user.username + ' has accepted your request, insufficient employees for PVP request')
+                        .setTitle('<@'+i.user.id + '> has accepted your request, insufficient employees for PVP request')
                         .setDescription(`This is a PVP request and requires at least ${neededForPVP} employees to accept it. Currently, only ${currentamountOfEmployees} employees have accepted the request.`)
                         .setColor(0xFF0000);
                     await i.channel.send({ embeds: [insufficientEmbed] });
@@ -72,7 +72,7 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
                     i.deferUpdate(); // Deferring the update to remove the "interaction failed" message
                     // Send message in channel indicating that another employee needs to accept the request
                     const insufficientEmbed = new EmbedBuilder()
-                        .setTitle(i.user.username + ' has accepted your request, insufficient employees for PVE request')
+                        .setTitle('<@'+i.user.id + '> has accepted your request, insufficient employees for PVE request')
                         .setDescription(`This is a PVE request and requires at least ${neededForPVE} employees to accept it. Currently, only ${currentamountOfEmployees} employees have accepted the request.`)
                         .setColor(0xFF0000);
                     await i.channel.send({ embeds: [insufficientEmbed] });
@@ -82,7 +82,7 @@ function setupTaxiRequestCollector(_db, client, sentMessageId, voiceChannelId, t
                 if (currentamountOfEmployees == neededForPVE || currentamountOfEmployees == neededForPVP) {
                     // Send message in channel indicating that the request is ready to be accepted
                     const readyEmbed = new EmbedBuilder()
-                        .setTitle(i.user.username + ' has accepted your request, ready to be accepted')
+                        .setTitle('<@'+i.user.id + '> has accepted your request, ready to be accepted')
                         .setDescription(`This request is now ready to be accepted by the requesting user. Please wait for them to confirm.`)
                         .setColor(0x00FF00);
                     await i.channel.send({ embeds: [readyEmbed] });
