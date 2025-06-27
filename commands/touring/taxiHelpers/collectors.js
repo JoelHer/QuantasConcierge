@@ -343,7 +343,7 @@ function setupTaxiDeletionCollector(_db, client, sentMessageId, voiceChannelId, 
                         console.error('Error in timeout deletion:', err);
                     }
                 })();
-            }, 10000);
+            }, 300000);
 
             const collector = sentMessage.createMessageComponentCollector({
                 componentType: ComponentType.Button,
