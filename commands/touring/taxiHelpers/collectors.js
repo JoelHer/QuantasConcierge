@@ -313,8 +313,38 @@ function setupTaxiRequestPersonaCollector(_db, client, sentMessageId, voiceChann
 
 function setupTaxiDeletionCollector(_db, client, sentMessageId, voiceChannelId, taxiRequestUserId, channel, taxiRoleId) {
     try {
+        
         console.log(`Setting up TAXI_DELETE collector for message ${sentMessageId} in channel ${channel.id} for user ${taxiRequestUserId}.`);
         channel.messages.fetch(sentMessageId).then(sentMessage => {
+            setTimeout(() => {
+                (async () => {
+                    try {
+                        const taxiUUID = sentMessage.id.split('.')[1]; // Fallback UUID if needed
+                        const guildid = sentMessage.guild.id;
+
+                        const voiceChannel = await sentMessage.guild.channels.fetch(voiceChannelId);
+                        const textChannel = await sentMessage.guild.channels.fetch(channel.id); // make sure 'channel' is defined or passed correctly
+
+                        if (voiceChannel) {
+                            await voiceChannel.delete();
+                            console.log(`Deleted voice channel: ${voiceChannel.name}`);
+                        } else {
+                            console.log(`Voice channel not found for taxi UUID: ${taxiUUID}`);
+                        }
+
+                        await textChannel.delete();
+                        console.log(`Deleted text channel: ${textChannel.name}`);
+
+                        _db.run(
+                            'DELETE FROM taxi_messages WHERE taxiuuid = ? AND guildid = ? AND messageid = ?',
+                            [taxiUUID, guildid, sentMessage.id]
+                        );
+                    } catch (err) {
+                        console.error('Error in timeout deletion:', err);
+                    }
+                })();
+            }, 10000);
+
             const collector = sentMessage.createMessageComponentCollector({
                 componentType: ComponentType.Button,
                 time: 2147483647 
@@ -640,11 +670,13 @@ function setupTaxiManagementCollector(_db, client, sentMessageId, voiceChannelId
 
                 managementCollector.on('end', collected => {
                     try {
-                        managementMessage.delete();
+                        if (managementMessage.channel) {
+                            managementMessage.delete();
+                        }
                     } catch (e) {
                         console.log('Something went wrong: ', e)
                     }
-                })
+                });
             }
         });
 
