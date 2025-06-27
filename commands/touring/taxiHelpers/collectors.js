@@ -240,7 +240,7 @@ function setupTaxiRequestPersonaCollector(_db, client, sentMessageId, voiceChann
                     .setDescription(`Taxi Request Confirmed. The request has been confirmed by the passenger, <@${i.user.id}>.`)
                     .setColor(0x00FF00);
                 await i.message.edit({ embeds: [acceptEmbed], components: [], content: `` });
-                await i.message.channel.send(`<@${taxiRequestUserId}> Your request has been accepted! Please proceed to the designated voice channel: <#${voiceChannelId}>`);
+                await i.message.channel.send(`<@${taxiRequestUserId}> If necessary/preferred, you can now proceed to the designated voice channel: <#${voiceChannelId}>`);
                 collector.stop(); 
                 _db.run(
                     'DELETE FROM taxi_messages WHERE taxiuuid = ? AND guildid = ? AND messageid = ?',
