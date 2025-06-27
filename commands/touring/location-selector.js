@@ -144,8 +144,8 @@ async function getLocationSelection(interaction, type) {
                 }))]
             } else {
                 moonOptions = [{
-                    label: `Pickup at ${capitalizeFirstLetter(selectedPlanetName)} (No specific moon)`,
-                    description: `I want to be picked up directly from ${capitalizeFirstLetter(selectedPlanetName)}.`,
+                    label: `${isPickup ? 'Pickup at' : 'Go to'} ${capitalizeFirstLetter(selectedPlanetName)} (No specific moon)`,
+                    description: `I want ${isPickup ? 'to get picked up from / near directly from' : 'to go directly to'} ${capitalizeFirstLetter(selectedPlanetName)}.`,
                     value: `moon.planetonly`,
                     emoji: '🌍',
                 }, ...moonsInSelectedPlanet.map(moonName => ({
