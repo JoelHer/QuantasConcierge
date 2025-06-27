@@ -80,6 +80,8 @@ db.run(`CREATE TABLE IF NOT EXISTS taxi_requests (
     destination_system TEXT NOT NULL,
     destination_planet TEXT NOT NULL,
     destination_moon TEXT,                            -- Optional
+	request_openend_tmsp INTEGER,
+	request_closed_tmsp INTEGER,
 	"payment_status"	TEXT,
 	"taxi_status"	TEXT,
 	"accepted_people"	TEXT DEFAULT "",

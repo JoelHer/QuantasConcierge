@@ -232,7 +232,7 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
             console.log('Setting up taxi request.\nFROM:', pickupLocation, '\nTO:', destinationLocation, '\nRequest ID:', requestUUID);
 
             db.run(
-                'INSERT INTO taxi_requests (request_id, guild_id, user_id, taxi_request_category, threat_level, situation, notes, assigned_text_channel, assigned_voice_channel, pickup_system, pickup_planet, pickup_moon, destination_system, destination_planet, destination_moon) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                'INSERT INTO taxi_requests (request_id, guild_id, user_id, taxi_request_category, threat_level, situation, notes, assigned_text_channel, assigned_voice_channel, pickup_system, pickup_planet, pickup_moon, destination_system, destination_planet, destination_moon, request_openend_tmsp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 [
                     requestUUID,
                     interaction.guild.id,
@@ -248,7 +248,8 @@ async function handleTouringCommand(interaction, taxiRequestCategory) {
                     pickupLocation.selectedMoonName || null,
                     destinationLocation.selectedSystemName,
                     destinationLocation.selectedPlanetName,
-                    destinationLocation.selectedMoonName || null
+                    destinationLocation.selectedMoonName || null,
+                    parseInt(Date.now()/1000)
                 ],
                 (error, results) => {
                     if (error) {

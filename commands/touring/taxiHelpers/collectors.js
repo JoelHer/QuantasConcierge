@@ -503,9 +503,10 @@ function setupTaxiManagementCollector(_db, client, sentMessageId, voiceChannelId
                         await j.update({ embeds: [paymentAcceptedEmbed], components: [], content: `<@${taxiRequestUserId}>` });
                     } else if (selection.startsWith(`status.taxi.accepted`)) {
                         _db.run(
-                            'UPDATE taxi_requests SET taxi_status = ? WHERE request_id = ? AND guild_id = ?',
+                            'UPDATE taxi_requests SET taxi_status = ?, request_closed_tmsp = ? WHERE request_id = ? AND guild_id = ?',
                             [
                                 'TAXI_ACCEPTED',
+                                parseInt(Date.now()/1000),
                                 requestUUID, // Extract the request UUID from the custom ID
                                 j.guild.id
                             ],
@@ -531,9 +532,10 @@ function setupTaxiManagementCollector(_db, client, sentMessageId, voiceChannelId
                         await j.update({ embeds: [paymentFailedEmbed], components: [], content: `<@${taxiRequestUserId}>` });
                     } else if (selection.startsWith(`status.taxi.failed`)) {
                         _db.run(
-                            'UPDATE taxi_requests SET taxi_status = ? WHERE request_id = ? AND guild_id = ?',
+                            'UPDATE taxi_requests SET taxi_status = ?, request_closed_tmsp = ? WHERE request_id = ? AND guild_id = ?',
                             [
                                 'TAXI_FAILED',
+                                parseInt(Date.now()/1000),
                                 requestUUID, // Extract the request UUID from the custom ID
                                 j.guild.id
                             ],
@@ -564,6 +566,55 @@ function setupTaxiManagementCollector(_db, client, sentMessageId, voiceChannelId
                             );
                         j.deferUpdate(); // Deferring the update to remove the "interaction failed" message
                         const newDeletionMessage = await j.channel.send({ embeds: [closeEmbed], components: [actionRow], content: `<@${taxiRequestUserId}>` });
+                        let management_updates_channel = await getSetting(_db, j.guild.id, "management_updates_channel")
+
+                        management_updates_channel = management_updates_channel.replace(/<#(\d+)>/, '$1')
+
+                        const managementChannel = await j.client.channels.fetch(management_updates_channel)
+
+                        const retrievedTaxiRow = await new Promise((resolve, reject) => {
+                            _db.get(
+                                `SELECT * FROM taxi_requests WHERE request_id = ?`,
+                                [i.channel.name.replace(/^taxi-/, '')], // maybe get the uuid differently in the future to avoid issues with channel names
+                                (err, row) => {
+                                    if (err) reject(err);
+                                    else resolve(row);
+                                }
+                            );
+                        });
+
+                        const getDurationString = function(openedSec, closedSec) {
+                            const diffMs = (closedSec - openedSec) * 1000;
+                            const totalMinutes = Math.floor(diffMs / 60000);
+                            const hours = Math.floor(totalMinutes / 60);
+                            const minutes = totalMinutes % 60;
+
+                            if (hours > 0 && minutes > 0) {
+                                return `${hours} Hour${hours !== 1 ? 's' : ''} and ${minutes} Minute${minutes !== 1 ? 's' : ''}`;
+                            } else if (hours > 0) {
+                                return `${hours} Hour${hours !== 1 ? 's' : ''}`;
+                            } else {
+                                return `${minutes} Minute${minutes !== 1 ? 's' : ''}`;
+                            }
+                        }
+
+                        const summaryEmbed = new EmbedBuilder()
+                            .setTitle('Taxi Request Completed.')
+                            .setDescription(`**Here is a quick summary of everything important:**`)
+                            .addFields(
+                                {name: "Requester", value: '<@'+retrievedTaxiRow.user_id+'>', inline: true},
+                                {name: "Employees", value: retrievedTaxiRow.accepted_people.split(";").join(" "), inline: true},
+                                {name: "Request Opened", value: '<t:'+retrievedTaxiRow.request_openend_tmsp+':t>', inline: true},
+                                {name: "Request Closed", value: '<t:'+retrievedTaxiRow.request_closed_tmsp+':t>', inline: true},
+                                {name: "Duration", value: getDurationString(retrievedTaxiRow.request_openend_tmsp, retrievedTaxiRow.request_closed_tmsp), inline: true},
+                                {name: "Payment Status", value: retrievedTaxiRow.payment_status, inline: true},
+                                {name: "Taxi Status", value: retrievedTaxiRow.taxi_status, inline: true}
+                            )
+                            .setFooter({ text: `Request ID: ${retrievedTaxiRow.request_id}` })
+                            .setColor(0x00FF00);
+
+                        managementChannel.send({embeds: [summaryEmbed]})
+
                         _db.run(
                             'DELETE FROM taxi_messages WHERE taxiuuid = ? AND guildid = ? AND messageid = ?',
                             [
